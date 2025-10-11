@@ -252,7 +252,7 @@ import Navbar from '../components/Navbar.astro'
         instructor: formData.get('instructor') || null,
       }
 
-      const response = await fetch(API_BASE + '/user/profile', {
+      const response = await fetch(API_BASE + '/api/user/profile', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

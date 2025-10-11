@@ -106,15 +106,15 @@ app.get('/api/auth/github/callback', passport.authenticate('github', { failureRe
 
     if (error || !user || !user.full_name || !user.role || !user.college) {
       // User needs to complete profile (year is optional for instructors)
-      res.redirect((process.env.CLIENT_ORIGIN || 'http://localhost:4000') + '/register');
+      res.redirect((process.env.CLIENT_ORIGIN || 'https://gitgopr.nstsdc.org') + '/register');
     } else {
       // User has completed profile, go to success page
-      res.redirect(process.env.CLIENT_SUCCESS_REDIRECT || 'http://localhost:4000/login?auth=success');
+      res.redirect(process.env.CLIENT_SUCCESS_REDIRECT || 'https://gitgopr.nstsdc.org/login?auth=success');
     }
   } catch (error) {
     console.error('Error checking user profile:', error);
     // Fallback to register page on error
-    res.redirect((process.env.CLIENT_ORIGIN || 'http://localhost:4000') + '/register');
+    res.redirect((process.env.CLIENT_ORIGIN || 'https://gitgopr.nstsdc.org') + '/register');
   }
 });
 
@@ -203,7 +203,7 @@ app.post('/api/user/profile', express.json(), async (req, res) => {
 app.get('/api/auth/logout', (req, res, next) => {
   req.logout((err) => {
     if (err) return next(err);
-    res.redirect(process.env.CLIENT_LOGOUT_REDIRECT || 'http://localhost:4000/login');
+    res.redirect(process.env.CLIENT_LOGOUT_REDIRECT || 'https://gitgopr.nstsdc.org/login');
   });
 });
 

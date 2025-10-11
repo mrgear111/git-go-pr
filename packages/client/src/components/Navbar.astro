@@ -108,7 +108,7 @@
           // Show user info and logout
           authArea.innerHTML = `
             <span class="text-green-100 text-sm mr-3">@${data.user.username || data.user.login || data.user.displayName}</span>
-            <a href="${API_BASE}/auth/logout" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded-md text-sm">Sign out</a>
+            <a href="${API_BASE}/api/auth/logout" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded-md text-sm">Sign out</a>
           `;
         } else {
           // Show login links, hide register link

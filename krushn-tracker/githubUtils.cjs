@@ -161,10 +161,239 @@ async function fetchPRsForUser(username) {
   return prRows
 }
 
+/**
+ * Fetch reviews for a specific PR
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} prNumber - PR number
+ * @returns {Promise<Array>} Array of review objects
+ */
+async function fetchPRReviews(owner, repo, prNumber) {
+  try {
+    const response = await axios.get(
+      `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`,
+      {
+        headers: {
+          Accept: 'application/vnd.github.v3+json',
+          ...(GITHUB_TOKEN && { Authorization: `token ${GITHUB_TOKEN}` }),
+        },
+      }
+    )
+    return response.data
+  } catch (error) {
+    console.error(
+      `Error fetching reviews for PR #${prNumber} in ${owner}/${repo}:`,
+      error.message
+    )
+    return []
+  }
+}
+
+/**
+ * Fetch review comments for a specific PR
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} prNumber - PR number
+ * @returns {Promise<Array>} Array of review comment objects
+ */
+async function fetchPRReviewComments(owner, repo, prNumber) {
+  try {
+    const response = await axios.get(
+      `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/comments`,
+      {
+        headers: {
+          Accept: 'application/vnd.github.v3+json',
+          ...(GITHUB_TOKEN && { Authorization: `token ${GITHUB_TOKEN}` }),
+        },
+      }
+    )
+    return response.data
+  } catch (error) {
+    console.error(
+      `Error fetching review comments for PR #${prNumber} in ${owner}/${repo}:`,
+      error.message
+    )
+    return []
+  }
+}
+
+/**
+ * Fetch requested reviewers for a specific PR
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} prNumber - PR number
+ * @returns {Promise<Object>} Object with users and teams arrays
+ */
+async function fetchRequestedReviewers(owner, repo, prNumber) {
+  try {
+    const response = await axios.get(
+      `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/requested_reviewers`,
+      {
+        headers: {
+          Accept: 'application/vnd.github.v3+json',
+          ...(GITHUB_TOKEN && { Authorization: `token ${GITHUB_TOKEN}` }),
+        },
+      }
+    )
+    return response.data
+  } catch (error) {
+    console.error(
+      `Error fetching requested reviewers for PR #${prNumber} in ${owner}/${repo}:`,
+      error.message
+    )
+    return { users: [], teams: [] }
+  }
+}
+
+/**
+ * Determine review status based on PR data, reviews, and comments
+ * @param {Object} prData - PR data object
+ * @param {Array} reviews - Array of review objects
+ * @param {Array} comments - Array of review comment objects
+ * @returns {string} Review status: 'pending', 'in_review', 'approved', 'changes_requested', 'merged'
+ */
+function determineReviewStatus(prData, reviews, comments) {
+  // If PR is merged, status is merged
+  if (prData.merged_at || prData.prMerged) {
+    return 'merged'
+  }
+
+  // Check review states
+  const hasChangesRequested = reviews.some((r) => r.state === 'CHANGES_REQUESTED')
+  const hasApproved = reviews.some((r) => r.state === 'APPROVED')
+  const hasReviews = reviews.length > 0
+  const hasComments = comments.length > 0
+
+  // If changes are requested, that takes precedence
+  if (hasChangesRequested) {
+    return 'changes_requested'
+  }
+
+  // If all reviews are approved and there are reviews
+  if (hasApproved && !hasChangesRequested) {
+    return 'approved'
+  }
+
+  // If there are reviews or comments, it's in review
+  if (hasReviews || hasComments) {
+    return 'in_review'
+  }
+
+  // Otherwise, it's pending
+  return 'pending'
+}
+
+/**
+ * Get earliest review start time
+ * @param {Array} reviews - Array of review objects
+ * @param {Array} comments - Array of review comment objects
+ * @returns {Date|null} Earliest review date or null
+ */
+function getReviewStartedAt(reviews, comments) {
+  const dates = []
+
+  // Add review submission dates
+  reviews.forEach((review) => {
+    if (review.submitted_at) {
+      dates.push(new Date(review.submitted_at))
+    }
+  })
+
+  // Add comment creation dates
+  comments.forEach((comment) => {
+    if (comment.created_at) {
+      dates.push(new Date(comment.created_at))
+    }
+  })
+
+  if (dates.length === 0) {
+    return null
+  }
+
+  // Return the earliest date
+  return new Date(Math.min(...dates))
+}
+
+/**
+ * Get unique reviewers from reviews and requested reviewers
+ * @param {Array} reviews - Array of review objects
+ * @param {Object} requestedReviewers - Object with users and teams
+ * @returns {Array<string>} Array of unique reviewer usernames
+ */
+function getReviewers(reviews, requestedReviewers) {
+  const reviewers = new Set()
+
+  // Add reviewers who have submitted reviews
+  reviews.forEach((review) => {
+    if (review.user && review.user.login) {
+      reviewers.add(review.user.login)
+    }
+  })
+
+  // Add requested reviewers
+  if (requestedReviewers && requestedReviewers.users) {
+    requestedReviewers.users.forEach((user) => {
+      if (user.login) {
+        reviewers.add(user.login)
+      }
+    })
+  }
+
+  return Array.from(reviewers)
+}
+
+/**
+ * Fetch complete review data for a PR
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} prNumber - PR number
+ * @param {Object} prData - Basic PR data
+ * @returns {Promise<Object>} Complete review data
+ */
+async function fetchPRReviewData(owner, repo, prNumber, prData) {
+  try {
+    const [reviews, comments, requestedReviewers] = await Promise.all([
+      fetchPRReviews(owner, repo, prNumber),
+      fetchPRReviewComments(owner, repo, prNumber),
+      fetchRequestedReviewers(owner, repo, prNumber),
+    ])
+
+    const reviewStatus = determineReviewStatus(prData, reviews, comments)
+    const reviewStartedAt = getReviewStartedAt(reviews, comments)
+    const reviewers = getReviewers(reviews, requestedReviewers)
+    const reviewCommentsCount = comments.length
+
+    return {
+      review_status: reviewStatus,
+      review_started_at: reviewStartedAt,
+      reviewers: reviewers,
+      review_comments_count: reviewCommentsCount,
+    }
+  } catch (error) {
+    console.error(
+      `Error fetching review data for PR #${prNumber} in ${owner}/${repo}:`,
+      error.message
+    )
+    return {
+      review_status: 'pending',
+      review_started_at: null,
+      reviewers: [],
+      review_comments_count: 0,
+    }
+  }
+}
+
 module.exports = {
   fetchPRsForUser,
   fetchOwnerDetails,
   fetchUserDetails,
   fetchRepositoryDetails,
   fetchMergeStatus,
+  fetchPRReviews,
+  fetchPRReviewComments,
+  fetchRequestedReviewers,
+  determineReviewStatus,
+  getReviewStartedAt,
+  getReviewers,
+  fetchPRReviewData,
 }

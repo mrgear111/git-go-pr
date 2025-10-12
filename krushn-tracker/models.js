@@ -161,6 +161,28 @@ const schemas = {
         type: Date,
         default: null,
       },
+      // Review tracking fields
+      review_status: {
+        type: String,
+        enum: ['pending', 'in_review', 'approved', 'changes_requested', 'merged'],
+        default: 'pending',
+      },
+      review_started_at: {
+        type: Date,
+        default: null,
+      },
+      reviewers: {
+        type: [String], // Array of reviewer GitHub usernames
+        default: [],
+      },
+      review_comments_count: {
+        type: Number,
+        default: 0,
+      },
+      pr_number: {
+        type: Number,
+        required: false,
+      },
     },
     {
       timestamps: true,

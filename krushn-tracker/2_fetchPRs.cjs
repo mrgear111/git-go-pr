@@ -19,6 +19,7 @@ const {
   fetchPRsForUser,
   fetchOwnerDetails,
   fetchRepositoryDetails,
+  fetchPRReviewData,
 } = require('./githubUtils.cjs')
 
 const fetchPullRequests = async (users) => {
@@ -82,6 +83,37 @@ const fetchPullRequests = async (users) => {
           )
         }
 
+        // Extract PR number from link
+        const prNumberMatch = prData.prLink.match(/\/pull\/(\d+)/)
+        const prNumber = prNumberMatch ? parseInt(prNumberMatch[1]) : null
+
+        // Fetch review data for the PR
+        let reviewData = {
+          review_status: 'pending',
+          review_started_at: null,
+          reviewers: [],
+          review_comments_count: 0,
+        }
+
+        if (prNumber) {
+          try {
+            reviewData = await fetchPRReviewData(
+              prData.owner,
+              prData.repo,
+              prNumber,
+              prData
+            )
+            console.log(
+              `Fetched review data for PR #${prNumber}: ${reviewData.review_status}`
+            )
+          } catch (error) {
+            console.error(
+              `Failed to fetch review data for PR #${prNumber}:`,
+              error.message
+            )
+          }
+        }
+
         // Upsert PR
         let pr = await GitHubPR.findOne({ github_id: prData.github_id })
         if (!pr) {
@@ -95,6 +127,11 @@ const fetchPullRequests = async (users) => {
             is_merged: prData.prMerged,
             createdAt: prData.prDate,
             link: prData.prLink,
+            pr_number: prNumber,
+            review_status: reviewData.review_status,
+            review_started_at: reviewData.review_started_at,
+            reviewers: reviewData.reviewers,
+            review_comments_count: reviewData.review_comments_count,
           })
           await pr.save()
           console.log(
@@ -113,6 +150,27 @@ const fetchPullRequests = async (users) => {
           }
           if (!pr.link) {
             pr.link = prData.prLink
+            updated = true
+          }
+          if (!pr.pr_number && prNumber) {
+            pr.pr_number = prNumber
+            updated = true
+          }
+          // Update review data
+          if (reviewData.review_status !== pr.review_status) {
+            pr.review_status = reviewData.review_status
+            updated = true
+          }
+          if (reviewData.review_comments_count !== pr.review_comments_count) {
+            pr.review_comments_count = reviewData.review_comments_count
+            updated = true
+          }
+          if (reviewData.review_started_at && !pr.review_started_at) {
+            pr.review_started_at = reviewData.review_started_at
+            updated = true
+          }
+          if (JSON.stringify(reviewData.reviewers) !== JSON.stringify(pr.reviewers)) {
+            pr.reviewers = reviewData.reviewers
             updated = true
           }
           if (updated) {

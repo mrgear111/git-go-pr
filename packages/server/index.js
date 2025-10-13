@@ -6,24 +6,29 @@ import dotenv from 'dotenv'
 import cors from 'cors'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { createTablesManually } from './supabase.js'
+import mongoose from 'mongoose'
 import { storeUserAndPRs } from './services/prService.js'
-// import cron from 'node-cron'
-
-import ensureDBInitialized from './middlewares/ensureDBInitialized.mjs'
+import apiRouter from './routes/index.mjs'
 
 dotenv.config()
+
+if (!process.env.MONGODB_URI) {
+  console.error('MONGODB_URI is not set in environment variables')
+  process.exit(1)
+}
+
+mongoose
+  .connect(process.env.MONGODB_URI)
+  .then(() => {
+    console.info('Connected to MongoDB')
+  })
+  .catch((err) => console.error('MongoDB connection error:', err))
 
 // Get __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-dotenv.config()
-
 const app = express()
-
-// Middleware to ensure database is initialized for serverless
-app.use(ensureDBInitialized)
 
 app.set('trust proxy', 1)
 
@@ -93,10 +98,6 @@ passport.use(
   )
 )
 
-// Serve static files from Astro build output
-const clientDistPath = path.join(__dirname, '..', 'client', 'dist')
-app.use(express.static(clientDistPath))
-
 // Health check route for Vercel
 app.get('/health', (req, res) => {
   res.json({
@@ -106,29 +107,14 @@ app.get('/health', (req, res) => {
   })
 })
 
-import apiRouter from './routes/index.mjs'
-
 app.use('/api', apiRouter)
 
-// Fallback for client-side routing - serve index.html for non-API routes
-app.get('*', (req, res) => {
-  // Skip API routes
-  if (req.path.startsWith('/api')) {
-    return res.status(404).json({ error: 'API endpoint not found' })
-  }
+// Serve static files from Astro build output
+const clientDistPath = path.join(__dirname, '..', 'client', 'dist')
+app.use(express.static(clientDistPath))
 
-  // Serve index.html for client-side routing
-  const clientDistPath = path.join(__dirname, '..', 'client', 'dist')
-  res.sendFile(path.join(clientDistPath, 'index.html'), (err) => {
-    if (err) {
-      console.error('Error serving index.html:', err)
-      res
-        .status(404)
-        .send(
-          'Page not found - Make sure to build the client first: npm run build:client'
-        )
-    }
-  })
+app.use('*', (req, res) => {
+  res.sendFile(path.join(clientDistPath, 'index.html'))
 })
 
 // For Vercel serverless deployment, export the app
@@ -136,11 +122,8 @@ export default app
 
 // For local development, still listen on port
 if (process.env.NODE_ENV !== 'production') {
-  const port = process.env.PORT || 4000
-  app.listen(port, async () => {
-    console.log(`Auth server listening on http://localhost:${port}`)
-
-    // Initialize database tables
-    await createTablesManually()
+  const PORT = process.env.PORT || 4000
+  app.listen(PORT, () => {
+    console.log(`Auth server listening on http://localhost:${PORT}`)
   })
 }

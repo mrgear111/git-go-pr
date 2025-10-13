@@ -1,6 +1,9 @@
 import models from '../models/index.mjs'
 import fetch from 'node-fetch'
 
+import dotenv from 'dotenv'
+dotenv.config()
+
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const START_DATE = '2025-10-01T00:00:00Z';
 const END_DATE = '2025-12-31T23:59:59Z';
@@ -20,6 +23,8 @@ export async function fetchUserPRsFromGitHub(username) {
     while (page <= 5) { // Limit to 5 pages for faster response
       const url = `https://api.github.com/search/issues?q=type:pr+author:${username}+created:${START_DATE.split('T')[0]}..${END_DATE.split('T')[0]}&sort=created&order=desc&page=${page}&per_page=${perPage}`;
       
+      console.log(`Fetching PRs for: ${username}, Page: ${page}`);
+
       const response = await fetch(url, { headers });
       
       if (!response.ok) {

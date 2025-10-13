@@ -1,0 +1,36 @@
+---
+interface Props {
+  id?: string;
+  class?: string;
+}
+
+const { id = 'auth-status', class: className = 'text-center text-sm' } = Astro.props;
+---
+
+<div id={id} class={className} data-auth-status>
+  <!-- Status messages will be populated by client-side script -->
+</div>
+
+<script>
+  // Authentication status messages
+  const AUTH_MESSAGES = {
+    success: '<span class="text-green-400">✓ Successfully signed in</span>',
+    pending: '<span class="text-yellow-400">Please sign in to continue</span>',
+    error: '<span class="text-red-400">Unable to connect to auth server</span>'
+  };
+
+  function updateAuthStatus(statusElement: HTMLElement, messageType: keyof typeof AUTH_MESSAGES) {
+    if (statusElement && statusElement.hasAttribute('data-auth-status')) {
+      statusElement.innerHTML = AUTH_MESSAGES[messageType];
+    }
+  }
+
+  // Make function globally available
+  window.updateAuthStatus = updateAuthStatus;
+
+  declare global {
+    interface Window {
+      updateAuthStatus: typeof updateAuthStatus;
+    }
+  }
+</script>

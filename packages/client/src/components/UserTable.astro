@@ -1,0 +1,132 @@
+---
+interface Props {
+  id?: string;
+}
+
+const { id = 'users-table' } = Astro.props;
+---
+
+<div class="bg-gray-900 border border-green-600 rounded-lg overflow-hidden">
+  <div class="px-6 py-4 bg-green-600">
+    <h2 class="text-xl font-bold text-white font-mono">Recent Users</h2>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="min-w-full">
+      <thead class="bg-gray-800">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-green-300 uppercase tracking-wider font-mono">
+            User
+          </th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-green-300 uppercase tracking-wider font-mono">
+            Role
+          </th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-green-300 uppercase tracking-wider font-mono">
+            College
+          </th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-green-300 uppercase tracking-wider font-mono">
+            PRs
+          </th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-green-300 uppercase tracking-wider font-mono">
+            Actions
+          </th>
+        </tr>
+      </thead>
+      <tbody id={id} class="bg-gray-900 divide-y divide-gray-700" data-user-table>
+        <!-- User rows will be populated by client-side script -->
+        <tr>
+          <td colspan="5" class="px-6 py-8 text-center">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-400 mx-auto mb-2"></div>
+            <p class="text-green-300 font-mono text-sm">Loading users...</p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  interface User {
+    _id: string;
+    username: string;
+    display_name: string | null;
+    avatar_url: string | null;
+    full_name: string | null;
+    role: string | null;
+    college: {
+      _id: string;
+      name: string;
+    } | null;
+    year: string | null;
+    instructor: string | null;
+    pr_count: number;
+    github_prs: any[] | null;
+  }
+
+  function renderUserRow(user: User): string {
+    const displayName = user.full_name || user.display_name || user.username;
+    const role = user.role || 'Not set';
+    const college = typeof user.college === 'string' ? user.college : user.college?.name || 'Not set';
+    const prCount = user.pr_count || user.github_prs?.length || 0;
+
+    return `
+      <tr class="hover:bg-gray-800 transition-colors">
+        <td class="px-6 py-4 whitespace-nowrap">
+          <div class="flex items-center">
+            <img 
+              src="https://avatars.githubusercontent.com/${user.username}" 
+              alt="${user.username}" 
+              class="w-8 h-8 rounded-full mr-3"
+            >
+            <div>
+              <p class="text-green-100 font-mono text-sm">${displayName}</p>
+              <p class="text-green-400 font-mono text-xs">@${user.username}</p>
+            </div>
+          </div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-green-100 font-mono text-sm">
+          ${role}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-green-100 font-mono text-sm">
+          ${college}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-green-100 font-mono text-sm">
+          ${prCount}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm font-mono">
+          <button 
+            onclick="window.viewUserPRs('${user._id}', '${user.username}')"
+            class="text-blue-400 hover:text-blue-300 underline"
+          >
+            View PRs
+          </button>
+        </td>
+      </tr>
+    `;
+  }
+
+  function populateUserTable(tableBody: HTMLElement, users: User[]) {
+    if (!tableBody || !tableBody.hasAttribute('data-user-table')) return;
+
+    if (users.length === 0) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="5" class="px-6 py-8 text-center">
+            <p class="text-green-300 font-mono">No users found</p>
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tableBody.innerHTML = users.map(renderUserRow).join('');
+  }
+
+  // Make function globally available
+  window.populateUserTable = populateUserTable;
+
+  declare global {
+    interface Window {
+      populateUserTable: typeof populateUserTable;
+    }
+  }
+</script>

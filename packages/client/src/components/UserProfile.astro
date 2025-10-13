@@ -1,0 +1,38 @@
+---
+interface Props {
+  id?: string;
+}
+
+const { id = 'auth-area' } = Astro.props;
+---
+
+<div id={id} data-user-profile>
+  <!-- User profile will be populated by client-side script -->
+</div>
+
+<script>
+  function renderUserProfile(container: HTMLElement, userData: any, apiBase: string = '') {
+    if (!container || !container.hasAttribute('data-user-profile')) return;
+    
+    if (userData && userData.authenticated && userData.user) {
+      const username = userData.user.username || userData.user.login || userData.user.displayName;
+      container.innerHTML = `
+        <span class="text-green-100 text-sm mr-3 font-mono">@${username}</span>
+        <a href="${apiBase}/api/auth/logout" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded-md text-sm font-mono transition-colors">
+          Sign out
+        </a>
+      `;
+    } else {
+      container.innerHTML = '';
+    }
+  }
+
+  // Make function globally available
+  window.renderUserProfile = renderUserProfile;
+
+  declare global {
+    interface Window {
+      renderUserProfile: typeof renderUserProfile;
+    }
+  }
+</script>

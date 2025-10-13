@@ -1,0 +1,101 @@
+---
+export interface LeaderboardEntry {
+  username: string;
+  display_name?: string;
+  total_prs: number;
+  merged_prs: number;
+}
+
+interface Props {
+  leaderboard: LeaderboardEntry[];
+}
+
+const { leaderboard } = Astro.props;
+
+// Ensure we have at least the top 3 or show empty state
+const first = leaderboard[0];
+const second = leaderboard[1];
+const third = leaderboard[2];
+---
+
+{leaderboard.length >= 3 ? (
+  <div class="flex justify-center items-end space-x-4 mb-12">
+    <!-- Second Place -->
+    {second && (
+      <div class="bg-gray-100 rounded-lg p-6 w-40 h-44 flex flex-col items-center justify-between">
+        <div class="text-center">
+          <img 
+            src={`https://avatars.githubusercontent.com/${second.username}`}
+            alt={second.username}
+            class="w-14 h-14 rounded-full mx-auto mb-2"
+          />
+          <h3 class="font-bold text-base font-mono truncate max-w-full">
+            {second.display_name || second.username}
+          </h3>
+          <p class="text-xs text-gray-600 font-mono truncate max-w-full">
+            @{second.username}
+          </p>
+          <p class="text-xl font-bold text-gray-700 font-mono mt-2">
+            {second.merged_prs} PRs
+          </p>
+          <p class="text-xs text-gray-500 font-mono">merged</p>
+        </div>
+        <div class="text-2xl font-bold text-gray-500 font-mono">🥈</div>
+      </div>
+    )}
+
+    <!-- First Place -->
+    {first && (
+      <div class="bg-yellow-100 rounded-lg p-6 w-40 h-56 flex flex-col items-center justify-between border-4 border-yellow-400">
+        <div class="text-center">
+          <img 
+            src={`https://avatars.githubusercontent.com/${first.username}`}
+            alt={first.username}
+            class="w-20 h-20 rounded-full mx-auto mb-2 border-2 border-yellow-500"
+          />
+          <h3 class="font-bold text-base font-mono truncate max-w-full">
+            {first.display_name || first.username}
+          </h3>
+          <p class="text-xs text-gray-600 font-mono truncate max-w-full">
+            @{first.username}
+          </p>
+          <p class="text-2xl font-bold text-yellow-700 font-mono mt-2">
+            {first.merged_prs} PRs
+          </p>
+          <p class="text-xs text-yellow-600 font-mono">merged</p>
+        </div>
+        <div class="text-3xl font-bold text-yellow-600 font-mono">👑</div>
+      </div>
+    )}
+
+    <!-- Third Place -->
+    {third && (
+      <div class="bg-orange-100 rounded-lg p-6 w-40 h-44 flex flex-col items-center justify-between">
+        <div class="text-center">
+          <img 
+            src={`https://avatars.githubusercontent.com/${third.username}`}
+            alt={third.username}
+            class="w-14 h-14 rounded-full mx-auto mb-2"
+          />
+          <h3 class="font-bold text-base font-mono truncate max-w-full">
+            {third.display_name || third.username}
+          </h3>
+          <p class="text-xs text-gray-600 font-mono truncate max-w-full">
+            @{third.username}
+          </p>
+          <p class="text-xl font-bold text-orange-700 font-mono mt-2">
+            {third.merged_prs} PRs
+          </p>
+          <p class="text-xs text-orange-600 font-mono">merged</p>
+        </div>
+        <div class="text-2xl font-bold text-orange-500 font-mono">🥉</div>
+      </div>
+    )}
+  </div>
+) : (
+  <div class="text-center py-16">
+    <div class="inline-block animate-pulse rounded-full h-20 w-20 bg-gray-200 mb-4"></div>
+    <h3 class="text-xl font-bold text-gray-900 mb-4 font-mono">Podium Coming Soon</h3>
+    <p class="text-gray-600 font-mono">Top contributors will appear here once the competition heats up!</p>
+  </div>
+)}

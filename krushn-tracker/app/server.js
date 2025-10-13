@@ -108,6 +108,71 @@ app.get('/api/statistics', async (req, res) => {
   }
 })
 
+app.get('/api/searchUsers', async (req, res) => {
+  try {
+    const { query } = req.query
+    
+    if (!query || query.trim() === '') {
+      return res.json([])
+    }
+
+    // Search by username or full_name (case-insensitive)
+    const users = await User.find({
+      $or: [
+        { username: { $regex: query, $options: 'i' } },
+        { full_name: { $regex: query, $options: 'i' } }
+      ]
+    })
+    .populate('college')
+    .limit(20)
+    .select('username full_name college year role')
+
+    res.json(users)
+  } catch (error) {
+    console.error('Error searching users:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+app.get('/api/userProfile/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params
+    
+    const user = await User.findById(userId).populate('college')
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    // Get PRs by this user
+    const prs = await GitHubPR.find({ author: userId })
+      .populate({
+        path: 'repository',
+        populate: { path: 'owner' },
+      })
+      .populate({
+        path: 'author',
+        populate: { path: 'college' },
+      })
+
+    // Filter out red-flagged repository PRs
+    const filteredPRs = prs.filter((pr) => !pr.repository.is_redFlagged)
+
+    res.json({
+      user,
+      prs: filteredPRs,
+      stats: {
+        totalPRs: filteredPRs.length,
+        mergedPRs: filteredPRs.filter(pr => pr.is_merged).length,
+        openPRs: filteredPRs.filter(pr => pr.is_open).length,
+        closedPRs: filteredPRs.filter(pr => !pr.is_open).length,
+      }
+    })
+  } catch (error) {
+    console.error('Error fetching user profile:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 app.use('/', express.static(__dirname + '/public'))
 
 app.listen(PORT, () => {

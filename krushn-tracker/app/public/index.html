@@ -8,6 +8,18 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 
     <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+
       table,
       th,
       td {
@@ -15,58 +27,203 @@
         border-collapse: collapse;
         padding: 8px;
       }
+
+      table {
+        background-color: white;
+        width: 100%;
+      }
+
+      .search-container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+
+      .search-box {
+        position: relative;
+        max-width: 500px;
+      }
+
+      .search-box input {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px;
+        border: 2px solid #ddd;
+        border-radius: 6px;
+        outline: none;
+      }
+
+      .search-box input:focus {
+        border-color: #4a90e2;
+      }
+
+      .search-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        max-height: 300px;
+        overflow-y: auto;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        z-index: 1000;
+        margin-top: 4px;
+      }
+
+      .search-result-item {
+        padding: 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+      }
+
+      .search-result-item:hover {
+        background-color: #f0f7ff;
+      }
+
+      .search-result-item:last-child {
+        border-bottom: none;
+      }
+
+      .user-info {
+        font-size: 14px;
+        color: #666;
+        margin-top: 4px;
+      }
+
+      .selected-user {
+        margin-top: 15px;
+        padding: 15px;
+        background-color: #e8f4ff;
+        border-radius: 6px;
+        border-left: 4px solid #4a90e2;
+      }
+
+      .clear-button {
+        background-color: #ff6b6b;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-left: 10px;
+        font-size: 14px;
+      }
+
+      .clear-button:hover {
+        background-color: #ee5a52;
+      }
+
+      .stats-table {
+        margin-bottom: 20px;
+      }
+
+      h1 {
+        margin-bottom: 20px;
+      }
+
+      h2 {
+        margin: 20px 0;
+      }
     </style>
   </head>
   <body>
     <div id="app">
       <h1>Krushn's Hacktoberfest Tracker</h1>
 
-      <table v-if="statistics">
+      <!-- Search Profile Section -->
+      <div class="search-container">
+        <h2>Search Profile by Author</h2>
+        <div class="search-box">
+          <input
+            type="text"
+            v-model="searchQuery"
+            @input="handleSearchInput"
+            @focus="showSearchResults = true"
+            placeholder="Search by username or full name..."
+          />
+          
+          <div v-if="showSearchResults && searchResults.length > 0" class="search-results">
+            <div
+              v-for="user in searchResults"
+              :key="user._id"
+              @click="selectUser(user)"
+              class="search-result-item"
+            >
+              <div><strong>{{ user.full_name }}</strong> (@{{ user.username }})</div>
+              <div class="user-info">
+                {{ user.college?.name || 'No College' }} - {{ user.year || 'N/A' }} | {{ user.role }}
+              </div>
+            </div>
+          </div>
+
+          <div v-if="showSearchResults && searchQuery && searchResults.length === 0" class="search-results">
+            <div class="search-result-item">No users found</div>
+          </div>
+        </div>
+
+        <div v-if="selectedUser" class="selected-user">
+          <strong>Selected Profile:</strong> {{ selectedUser.full_name }} (@{{ selectedUser.username }})
+          <button @click="clearSelection" class="clear-button">Clear Filter</button>
+          <div v-if="userProfileStats" style="margin-top: 10px;">
+            <strong>Stats:</strong> 
+            Total PRs: {{ userProfileStats.totalPRs }} | 
+            Merged: {{ userProfileStats.mergedPRs }} | 
+            Open: {{ userProfileStats.openPRs }} | 
+            Closed: {{ userProfileStats.closedPRs }}
+          </div>
+        </div>
+      </div>
+
+      <table v-if="statistics" class="stats-table">
         <tr>
           <td>Total PRs</td>
-          <td>{{ statistics.totalPRs }}</td>
+          <td>{{ displayStatistics.totalPRs }}</td>
         </tr>
         <tr>
           <td>Merged PRs</td>
-          <td>{{ statistics.mergedPRs }}</td>
+          <td>{{ displayStatistics.mergedPRs }}</td>
         </tr>
         <tr>
           <td>Open PRs</td>
-          <td>{{ statistics.openPRs }}</td>
+          <td>{{ displayStatistics.openPRs }}</td>
         </tr>
         <tr>
           <td>Closed PRs</td>
-          <td>{{ statistics.closedPRs }}</td>
+          <td>{{ displayStatistics.closedPRs }}</td>
         </tr>
-        <tr>
+        <tr v-if="!selectedUser">
           <td>Total Repositories</td>
           <td>{{ statistics.totalRepositories }}</td>
         </tr>
-        <tr>
+        <tr v-if="!selectedUser">
           <td>Red-Flagged Repositories</td>
           <td>{{ statistics.redFlaggedRepositories }}</td>
         </tr>
-        <tr>
+        <tr v-if="!selectedUser">
           <td>Total Users</td>
           <td>{{ statistics.totalUsers }}</td>
         </tr>
-        <tr>
+        <tr v-if="!selectedUser">
           <td>Total Colleges</td>
           <td>{{ statistics.totalColleges }}</td>
         </tr>
-        <tr>
+        <tr v-if="!selectedUser">
           <td>Total Owners</td>
           <td>{{ statistics.totalOwners }}</td>
         </tr>
       </table>
 
-      <h2>Pull Requests</h2>
-      <table v-if="prs.length">
+      <h2>Pull Requests {{ selectedUser ? 'for ' + selectedUser.full_name : '' }}</h2>
+      <table v-if="displayedPRs.length">
         <thead>
           <tr>
             <td v-if="statistics" colspan="6">
-              Visible PRs: {{ prs.length }} | Hidden PRs: {{ statistics.totalPRs
-              - prs.length }}
+              Visible PRs: {{ displayedPRs.length }}
+              <span v-if="!selectedUser"> | Hidden PRs: {{ statistics.totalPRs - displayedPRs.length }}</span>
             </td>
           </tr>
           <tr>
@@ -79,7 +236,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="pr in prs" :key="pr._id">
+          <tr v-for="pr in displayedPRs" :key="pr._id">
             <td>
               <p>{{ pr.author.full_name }}</p>
               <p>{{ pr.author.username }}</p>

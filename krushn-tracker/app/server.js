@@ -1,7 +1,9 @@
 const express = require('express')
 const mongoose = require('mongoose')
 const cors = require('cors')
-require('dotenv').config()
+require('dotenv').config({
+  quiet: true,
+})
 
 const {
   User,
@@ -111,7 +113,7 @@ app.get('/api/statistics', async (req, res) => {
 app.get('/api/searchUsers', async (req, res) => {
   try {
     const { query } = req.query
-    
+
     if (!query || query.trim() === '') {
       return res.json([])
     }
@@ -120,12 +122,12 @@ app.get('/api/searchUsers', async (req, res) => {
     const users = await User.find({
       $or: [
         { username: { $regex: query, $options: 'i' } },
-        { full_name: { $regex: query, $options: 'i' } }
-      ]
+        { full_name: { $regex: query, $options: 'i' } },
+      ],
     })
-    .populate('college')
-    .limit(20)
-    .select('username full_name college year role')
+      .populate('college')
+      .limit(20)
+      .select('username full_name college year role')
 
     res.json(users)
   } catch (error) {
@@ -137,7 +139,7 @@ app.get('/api/searchUsers', async (req, res) => {
 app.get('/api/userProfile/:userId', async (req, res) => {
   try {
     const { userId } = req.params
-    
+
     const user = await User.findById(userId).populate('college')
     if (!user) {
       return res.status(404).json({ error: 'User not found' })
@@ -162,10 +164,10 @@ app.get('/api/userProfile/:userId', async (req, res) => {
       prs: filteredPRs,
       stats: {
         totalPRs: filteredPRs.length,
-        mergedPRs: filteredPRs.filter(pr => pr.is_merged).length,
-        openPRs: filteredPRs.filter(pr => pr.is_open).length,
-        closedPRs: filteredPRs.filter(pr => !pr.is_open).length,
-      }
+        mergedPRs: filteredPRs.filter((pr) => pr.is_merged).length,
+        openPRs: filteredPRs.filter((pr) => pr.is_open).length,
+        closedPRs: filteredPRs.filter((pr) => !pr.is_open).length,
+      },
     })
   } catch (error) {
     console.error('Error fetching user profile:', error)

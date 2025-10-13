@@ -1,7 +1,7 @@
 ---
-import Layout from "../layouts/Layout.astro";
-import Navbar from "../components/Navbar.astro";
-import Footer from "../components/Footer.astro";
+import Layout from '../layouts/Layout.astro'
+import Navbar from '../components/Navbar.astro'
+import Footer from '../components/Footer.astro'
 ---
 
 <Layout title="Leaderboard - Hacktoberfest 2025">
@@ -12,25 +12,35 @@ import Footer from "../components/Footer.astro";
   <section class="py-16">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center mb-12">
-        <h1 class="text-4xl font-bold text-gray-900 mb-4 font-mono">Leaderboard</h1>
+        <h1 class="text-4xl font-bold text-gray-900 mb-4 font-mono">
+          Leaderboard
+        </h1>
         <p class="text-xl text-gray-600 max-w-2xl mx-auto font-mono">
           See who's leading the pack in Hacktoberfest 2025 contributions
         </p>
       </div>
 
       <div id="loading" class="text-center py-16">
-        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+        <div
+          class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-green-600">
+        </div>
         <p class="mt-4 text-gray-600 font-mono">Loading leaderboard...</p>
       </div>
 
-      <div id="error" class="hidden bg-red-50 border border-red-200 rounded-lg p-6 mb-8">
-        <h3 class="text-red-800 font-semibold font-mono mb-2">Backend Connection Error</h3>
+      <div
+        id="error"
+        class="hidden bg-red-50 border border-red-200 rounded-lg p-6 mb-8">
+        <h3 class="text-red-800 font-semibold font-mono mb-2">
+          Backend Connection Error
+        </h3>
         <p id="error-message" class="text-red-700 font-mono text-sm"></p>
       </div>
 
       <div id="podium" class="mb-16 text-center hidden"></div>
 
-      <div id="leaderboard-table" class="bg-white rounded-lg shadow-lg overflow-hidden hidden">
+      <div
+        id="leaderboard-table"
+        class="bg-white rounded-lg shadow-lg overflow-hidden hidden">
         <div class="px-6 py-4 bg-green-600 text-white">
           <h2 class="text-xl font-semibold font-mono">Full Rankings</h2>
         </div>
@@ -38,15 +48,35 @@ import Footer from "../components/Footer.astro";
           <table class="min-w-full">
             <thead class="bg-gray-50">
               <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono">Rank</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono">Contributor</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono">GitHub</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono">Total PRs</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono">Merged PRs</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono">Badge</th>
+                <th
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono"
+                  >Rank</th
+                >
+                <th
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono"
+                  >Contributor</th
+                >
+                <th
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono"
+                  >GitHub</th
+                >
+                <th
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono"
+                  >Total PRs</th
+                >
+                <th
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono"
+                  >Merged PRs</th
+                >
+                <th
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono"
+                  >Badge</th
+                >
               </tr>
             </thead>
-            <tbody id="leaderboard-body" class="bg-white divide-y divide-gray-200"></tbody>
+            <tbody
+              id="leaderboard-body"
+              class="bg-white divide-y divide-gray-200"></tbody>
           </table>
         </div>
       </div>
@@ -57,127 +87,181 @@ import Footer from "../components/Footer.astro";
 </Layout>
 
 <script>
-  const API_BASE = '';  // Same origin, no need for full URL
-  
+  const API_BASE =
+    import.meta.env.MODE == 'development' ? 'http://localhost:4000' : ''
+
   interface LeaderboardEntry {
-    username: string;
-    display_name: string;
-    avatar_url: string;
-    total_prs: number;
-    merged_prs: number;
+    username: string
+    display_name: string
+    avatar_url: string
+    total_prs: number
+    merged_prs: number
   }
-  
+
   async function loadLeaderboard() {
     try {
-      const res = await fetch('/api/leaderboard');
-      
+      const res = await fetch(API_BASE + '/api/leaderboard')
+
       if (!res.ok) {
-        throw new Error('API Error: ' + res.status + ' ' + res.statusText);
+        throw new Error('API Error: ' + res.status + ' ' + res.statusText)
       }
-      
-      const leaderboard: LeaderboardEntry[] = await res.json();
-      
-      const loading = document.getElementById('loading');
-      if (loading) loading.classList.add('hidden');
-      
+
+      const leaderboard: LeaderboardEntry[] = await res.json()
+
+      const loading = document.getElementById('loading')
+      if (loading) loading.classList.add('hidden')
+
       if (leaderboard.length >= 3) {
-        renderPodium(leaderboard);
+        renderPodium(leaderboard)
       }
-      
-      renderLeaderboardTable(leaderboard);
-      
+
+      renderLeaderboardTable(leaderboard)
     } catch (err) {
-      console.error('Leaderboard fetch error:', err);
-      const loading = document.getElementById('loading');
-      if (loading) loading.classList.add('hidden');
-      const errorDiv = document.getElementById('error');
-      const errorMsg = document.getElementById('error-message');
+      console.error('Leaderboard fetch error:', err)
+      const loading = document.getElementById('loading')
+      if (loading) loading.classList.add('hidden')
+      const errorDiv = document.getElementById('error')
+      const errorMsg = document.getElementById('error-message')
       if (errorDiv && errorMsg) {
-        errorDiv.classList.remove('hidden');
-        errorMsg.textContent = err instanceof Error ? err.message : 'Failed to load leaderboard';
+        errorDiv.classList.remove('hidden')
+        errorMsg.textContent =
+          err instanceof Error ? err.message : 'Failed to load leaderboard'
       }
     }
   }
-  
+
   function renderPodium(leaderboard: LeaderboardEntry[]) {
-    const podium = document.getElementById('podium');
-    if (!podium) return;
-    
-    const html = '<div class="flex justify-center items-end space-x-8 mb-8">' +
+    const podium = document.getElementById('podium')
+    if (!podium) return
+
+    const html =
+      '<div class="flex justify-center items-end space-x-8 mb-8">' +
       '<div class="bg-gray-100 rounded-lg p-6 w-40 h-48 flex flex-col items-center justify-between">' +
-        '<div class="text-center">' +
-          '<img src="' + leaderboard[1]?.avatar_url + '" alt="' + leaderboard[1]?.username + '" class="w-16 h-16 rounded-full mx-auto mb-2" />' +
-          '<h3 class="font-bold text-base font-mono truncate max-w-full">' + (leaderboard[1]?.display_name || leaderboard[1]?.username) + '</h3>' +
-          '<p class="text-xs text-gray-600 font-mono truncate max-w-full">@' + leaderboard[1]?.username + '</p>' +
-          '<p class="text-xl font-bold text-gray-700 font-mono mt-2">' + leaderboard[1]?.merged_prs + ' PRs</p>' +
-          '<p class="text-xs text-gray-500 font-mono">merged</p>' +
-        '</div>' +
-        '<div class="text-2xl font-bold text-gray-500 font-mono">🥈</div>' +
+      '<div class="text-center">' +
+      '<img src="' +
+      leaderboard[1]?.avatar_url +
+      '" alt="' +
+      leaderboard[1]?.username +
+      '" class="w-16 h-16 rounded-full mx-auto mb-2" />' +
+      '<h3 class="font-bold text-base font-mono truncate max-w-full">' +
+      (leaderboard[1]?.display_name || leaderboard[1]?.username) +
+      '</h3>' +
+      '<p class="text-xs text-gray-600 font-mono truncate max-w-full">@' +
+      leaderboard[1]?.username +
+      '</p>' +
+      '<p class="text-xl font-bold text-gray-700 font-mono mt-2">' +
+      leaderboard[1]?.merged_prs +
+      ' PRs</p>' +
+      '<p class="text-xs text-gray-500 font-mono">merged</p>' +
+      '</div>' +
+      '<div class="text-2xl font-bold text-gray-500 font-mono">🥈</div>' +
       '</div>' +
       '<div class="bg-yellow-100 rounded-lg p-6 w-40 h-56 flex flex-col items-center justify-between border-4 border-yellow-400">' +
-        '<div class="text-center">' +
-          '<img src="' + leaderboard[0]?.avatar_url + '" alt="' + leaderboard[0]?.username + '" class="w-20 h-20 rounded-full mx-auto mb-2 border-2 border-yellow-500" />' +
-          '<h3 class="font-bold text-base font-mono truncate max-w-full">' + (leaderboard[0]?.display_name || leaderboard[0]?.username) + '</h3>' +
-          '<p class="text-xs text-gray-600 font-mono truncate max-w-full">@' + leaderboard[0]?.username + '</p>' +
-          '<p class="text-2xl font-bold text-yellow-700 font-mono mt-2">' + leaderboard[0]?.merged_prs + ' PRs</p>' +
-          '<p class="text-xs text-yellow-600 font-mono">merged</p>' +
-        '</div>' +
-        '<div class="text-3xl font-bold text-yellow-600 font-mono">👑</div>' +
+      '<div class="text-center">' +
+      '<img src="' +
+      leaderboard[0]?.avatar_url +
+      '" alt="' +
+      leaderboard[0]?.username +
+      '" class="w-20 h-20 rounded-full mx-auto mb-2 border-2 border-yellow-500" />' +
+      '<h3 class="font-bold text-base font-mono truncate max-w-full">' +
+      (leaderboard[0]?.display_name || leaderboard[0]?.username) +
+      '</h3>' +
+      '<p class="text-xs text-gray-600 font-mono truncate max-w-full">@' +
+      leaderboard[0]?.username +
+      '</p>' +
+      '<p class="text-2xl font-bold text-yellow-700 font-mono mt-2">' +
+      leaderboard[0]?.merged_prs +
+      ' PRs</p>' +
+      '<p class="text-xs text-yellow-600 font-mono">merged</p>' +
+      '</div>' +
+      '<div class="text-3xl font-bold text-yellow-600 font-mono">👑</div>' +
       '</div>' +
       '<div class="bg-orange-100 rounded-lg p-6 w-40 h-44 flex flex-col items-center justify-between">' +
-        '<div class="text-center">' +
-          '<img src="' + leaderboard[2]?.avatar_url + '" alt="' + leaderboard[2]?.username + '" class="w-14 h-14 rounded-full mx-auto mb-2" />' +
-          '<h3 class="font-bold text-base font-mono truncate max-w-full">' + (leaderboard[2]?.display_name || leaderboard[2]?.username) + '</h3>' +
-          '<p class="text-xs text-gray-600 font-mono truncate max-w-full">@' + leaderboard[2]?.username + '</p>' +
-          '<p class="text-xl font-bold text-orange-700 font-mono mt-2">' + leaderboard[2]?.merged_prs + ' PRs</p>' +
-          '<p class="text-xs text-orange-600 font-mono">merged</p>' +
-        '</div>' +
-        '<div class="text-2xl font-bold text-orange-500 font-mono">🥉</div>' +
+      '<div class="text-center">' +
+      '<img src="' +
+      leaderboard[2]?.avatar_url +
+      '" alt="' +
+      leaderboard[2]?.username +
+      '" class="w-14 h-14 rounded-full mx-auto mb-2" />' +
+      '<h3 class="font-bold text-base font-mono truncate max-w-full">' +
+      (leaderboard[2]?.display_name || leaderboard[2]?.username) +
+      '</h3>' +
+      '<p class="text-xs text-gray-600 font-mono truncate max-w-full">@' +
+      leaderboard[2]?.username +
+      '</p>' +
+      '<p class="text-xl font-bold text-orange-700 font-mono mt-2">' +
+      leaderboard[2]?.merged_prs +
+      ' PRs</p>' +
+      '<p class="text-xs text-orange-600 font-mono">merged</p>' +
       '</div>' +
-    '</div>';
-    
-    podium.innerHTML = html;
-    podium.classList.remove('hidden');
+      '<div class="text-2xl font-bold text-orange-500 font-mono">🥉</div>' +
+      '</div>' +
+      '</div>'
+
+    podium.innerHTML = html
+    podium.classList.remove('hidden')
   }
-  
+
   function renderLeaderboardTable(leaderboard: LeaderboardEntry[]) {
-    const tableBody = document.getElementById('leaderboard-body');
-    const table = document.getElementById('leaderboard-table');
-    
-    if (!tableBody || !table) return;
-    
+    const tableBody = document.getElementById('leaderboard-body')
+    const table = document.getElementById('leaderboard-table')
+
+    if (!tableBody || !table) return
+
     if (leaderboard.length === 0) {
-      tableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-16 text-center">' +
+      tableBody.innerHTML =
+        '<tr><td colspan="6" class="px-6 py-16 text-center">' +
         '<h3 class="text-xl font-bold text-gray-900 mb-4 font-mono">Leaderboard Coming Soon</h3>' +
         '<p class="text-gray-600 mb-8 max-w-md mx-auto font-mono">Once contributors start participating, you will see detailed rankings here.</p>' +
         '<a href="/login" class="inline-block bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold font-mono">Sign in to Participate</a>' +
-        '</td></tr>';
+        '</td></tr>'
     } else {
-      let rows = '';
+      let rows = ''
       for (let i = 0; i < leaderboard.length; i++) {
-        const entry = leaderboard[i];
-        const badge = i === 0 ? '👑' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
-        const rowClass = i < 3 ? 'bg-yellow-50' : '';
-        
-        rows += '<tr class="' + rowClass + '">' +
-          '<td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 font-mono">#' + (i + 1) + '</td>' +
+        const entry = leaderboard[i]
+        const badge = i === 0 ? '👑' : i === 1 ? '🥈' : i === 2 ? '🥉' : ''
+        const rowClass = i < 3 ? 'bg-yellow-50' : ''
+
+        rows +=
+          '<tr class="' +
+          rowClass +
+          '">' +
+          '<td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 font-mono">#' +
+          (i + 1) +
+          '</td>' +
           '<td class="px-6 py-4 whitespace-nowrap"><div class="flex items-center">' +
-            '<img src="' + entry.avatar_url + '" alt="' + entry.username + '" class="w-8 h-8 rounded-full mr-3" />' +
-            '<span class="text-sm font-medium text-gray-900 font-mono">' + (entry.display_name || entry.username) + '</span>' +
+          '<img src="' +
+          entry.avatar_url +
+          '" alt="' +
+          entry.username +
+          '" class="w-8 h-8 rounded-full mr-3" />' +
+          '<span class="text-sm font-medium text-gray-900 font-mono">' +
+          (entry.display_name || entry.username) +
+          '</span>' +
           '</div></td>' +
           '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">' +
-            '<a href="https://github.com/' + entry.username + '" target="_blank" class="text-blue-600 hover:text-blue-800 underline">@' + entry.username + '</a>' +
+          '<a href="https://github.com/' +
+          entry.username +
+          '" target="_blank" class="text-blue-600 hover:text-blue-800 underline">@' +
+          entry.username +
+          '</a>' +
           '</td>' +
-          '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono">' + entry.total_prs + '</td>' +
-          '<td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600 font-mono">' + entry.merged_prs + '</td>' +
-          '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><span class="text-2xl">' + badge + '</span></td>' +
-        '</tr>';
+          '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono">' +
+          entry.total_prs +
+          '</td>' +
+          '<td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600 font-mono">' +
+          entry.merged_prs +
+          '</td>' +
+          '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><span class="text-2xl">' +
+          badge +
+          '</span></td>' +
+          '</tr>'
       }
-      tableBody.innerHTML = rows;
+      tableBody.innerHTML = rows
     }
-    
-    table.classList.remove('hidden');
+
+    table.classList.remove('hidden')
   }
-  
-  loadLeaderboard();
+
+  loadLeaderboard()
 </script>

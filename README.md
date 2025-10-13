@@ -1,22 +1,14 @@
-<!-- markdownlint-disable no-inline-html -->
-<!-- markdownlint-disable first-line-heading -->
 
-<div align="center">
 # 🚀 GIT GO PR — Pull Request Tracker
-</div>
 
-<p align="center">
-  **Track your open-source pull requests during Hacktoberfest 2025 🌸**
+Track your open-source pull requests during Hacktoberfest 2025 🌸
   
-  Built with 💖 by the [NST Student Developer Club](https://nstsdc.org)
-</p>
+Built with 💖 by the [NST Student Developer Club](https://nstsdc.org)
 
-<p align="center">
-  [![Live Demo - Online](https://img.shields.io/badge/Live%20Demo-Online-green?style=for-the-badge)](https://gitgopr.nstsdc.org)
-  ![Built With Astro + Express](https://img.shields.io/badge/Built%20With-Astro%20%2B%20Express-blue?style=for-the-badge)
-  ![Database: MongoDB](https://img.shields.io/badge/Database-MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
-  ![Hacktoberfest 2025 Badge](https://img.shields.io/badge/Event-Hacktoberfest%202025-orange?style=for-the-badge)
-</p>
+[![Live Demo - Online](https://img.shields.io/badge/Live%20Demo-Online-green?style=for-the-badge)](https://gitgopr.nstsdc.org)
+![Built With Astro + Express](https://img.shields.io/badge/Built%20With-Astro%20%2B%20Express-blue?style=for-the-badge)
+![Database: MongoDB](https://img.shields.io/badge/Database-MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
+![Hacktoberfest 2025 Badge](https://img.shields.io/badge/Event-Hacktoberfest%202025-orange?style=for-the-badge)
 
 ---
 
@@ -99,10 +91,6 @@ If you'd like to improve the project, feel free to fork and submit a PR.
 
 ---
 
-<p align="center">
-  Made with ❤️ by [NSTSDC Dev Club](https://nstsdc.org) | October 2025
-</p>
+Made with ❤️ by [NSTSDC Dev Club](https://nstsdc.org) | October 2025
 
-<p align="center">
-  ![thank you gif](https://media.giphy.com/media/du3J3cXyzhj75IOgvA/giphy.gif)
-</p>
+![thank you gif](https://media.giphy.com/media/du3J3cXyzhj75IOgvA/giphy.gif)

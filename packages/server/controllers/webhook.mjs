@@ -1,4 +1,4 @@
-import { supabase } from '../supabase.js'
+import models from '../models/index.mjs'
 
 export async function handleGitHubWebhook(req, res) {
   try {
@@ -74,34 +74,16 @@ export async function handleGitHubWebhook(req, res) {
 
       // Update user's PR data if they exist in our system
       try {
-        const { data: user, error: userError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('username', prAuthor)
-          .single()
-
-        if (userError && userError.code !== 'PGRST116') {
-          // PGRST116 is "not found"
-          console.error(
-            `Webhook error: Database error fetching user ${prAuthor}:`,
-            userError
-          )
-          return res.status(500).json({ error: 'Database error' })
-        }
+        const user = await models.User.findOne({ username: prAuthor })
 
         if (user) {
           console.log(`Refreshing PR data for ${prAuthor}...`)
-
           try {
-            const { refreshUserPRs } = await import('./prService.js')
+            const { refreshUserPRs } = await import('../services/prService.js')
             await refreshUserPRs(prAuthor)
             console.log(`Successfully refreshed PR data for ${prAuthor}`)
           } catch (refreshError) {
-            console.error(
-              `Webhook error: Failed to refresh PRs for ${prAuthor}:`,
-              refreshError
-            )
-            // Don't return error - webhook was processed, just refresh failed
+            console.error(`Webhook error: Failed to refresh PRs for ${prAuthor}:`, refreshError)
           }
         } else {
           console.log(`User ${prAuthor} not found in system, skipping refresh`)

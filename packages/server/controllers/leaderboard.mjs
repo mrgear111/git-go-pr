@@ -1,40 +1,45 @@
-import { supabase } from '../supabase.js';
+import models from '../models/index.mjs'
+
+const { User } = models
 
 export async function getLeaderboard(req, res) {
   try {
-    // Get users with their merged PR counts
-    const { data: users, error: usersError } = await supabase
-      .from('users')
-      .select('id, username, display_name, avatar_url, pr_count')
-      .order('pr_count', { ascending: false })
-
-    if (usersError) {
-      return res.status(500).json({ error: usersError.message })
-    }
-
-    // Get merged PR counts for each user
-    const leaderboard = await Promise.all(
-      users.map(async (user) => {
-        const { data: prs, error: prsError } = await supabase
-          .from('pull_requests')
-          .select('merged_at')
-          .eq('user_id', user.id)
-          .not('merged_at', 'is', null) // Only count PRs that have been merged
-
-        const mergedCount = prs ? prs.length : 0
-
-        return {
-          username: user.username,
-          display_name: user.display_name,
-          avatar_url: user.avatar_url,
-          total_prs: user.pr_count,
-          merged_prs: mergedCount,
-        }
-      })
-    )
-
-    // Sort by merged PRs count (highest first)
-    leaderboard.sort((a, b) => b.merged_prs - a.merged_prs)
+    // Use MongoDB aggregation to get leaderboard data efficiently
+    const leaderboard = await User.aggregate([
+      {
+        $lookup: {
+          from: 'githubprs',
+          localField: '_id',
+          foreignField: 'author',
+          as: 'prs',
+        },
+      },
+      {
+        $addFields: {
+          total_prs: { $size: '$prs' },
+          merged_prs: {
+            $size: {
+              $filter: {
+                input: '$prs',
+                cond: { $eq: ['$$this.is_merged', true] },
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          username: 1,
+          display_name: '$full_name',
+          avatar_url: 1,
+          total_prs: 1,
+          merged_prs: 1,
+        },
+      },
+      {
+        $sort: { merged_prs: -1 },
+      },
+    ])
 
     res.json(leaderboard)
   } catch (error) {

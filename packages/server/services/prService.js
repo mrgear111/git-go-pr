@@ -1,5 +1,5 @@
-import { supabase } from '../supabase.js';
-import fetch from 'node-fetch';
+import models from '../models/index.mjs'
+import fetch from 'node-fetch'
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const START_DATE = '2025-10-01T00:00:00Z';
@@ -49,70 +49,37 @@ export async function fetchUserPRsFromGitHub(username) {
 
 export async function storeUserAndPRs(githubUser) {
   try {
-    const username = githubUser.username || githubUser.login;
-    const avatarUrl = githubUser.photos?.[0]?.value || githubUser.avatar_url;
-    const displayName = githubUser.displayName || githubUser.name;
+    const username = githubUser.username || githubUser.login
+    const prs = await fetchUserPRsFromGitHub(username)
 
-    // Fetch PRs from GitHub
-    console.log(`Fetching PRs for ${username}...`);
-    const prs = await fetchUserPRsFromGitHub(username);
-    console.log(`Found ${prs.length} PRs`);
+    // Store/update user in MongoDB
+    const userData = await models.User.findOneAndUpdate(
+      { github_id: githubUser.id },
+      { 
+        username,
+        github_id: githubUser.id
+      },
+      { upsert: true, new: true }
+    )
 
-    // Store/update user in database
-    console.log('Attempting to store user in Supabase...');
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .upsert({
-        github_id: String(githubUser.id),
-        username: username,
-        display_name: displayName,
-        avatar_url: avatarUrl,
-        pr_count: prs.length,
-        last_updated: new Date().toISOString()
-      }, {
-        onConflict: 'github_id'
-      })
-      .select()
-      .single();
-
-    if (userError) {
-      console.error('Error storing user:', userError);
-      console.error('Full error details:', JSON.stringify(userError, null, 2));
-      return { success: false, error: userError };
-    }
-
-    console.log('User stored successfully:', userData);
-
-    // Delete existing PRs for this user (to update with fresh data)
-    await supabase
-      .from('pull_requests')
-      .delete()
-      .eq('user_id', userData.id);
+    // Remove existing PRs and store new ones
+    await models.GitHubPR.deleteMany({ author: userData._id })
 
     // Store PRs
     if (prs.length > 0) {
       const prData = prs.map(pr => ({
-        user_id: userData.id,
-        pr_number: pr.number,
+        github_id: pr.id,
         title: pr.title,
-        url: pr.html_url,
-        repository: pr.repository_url.split('/').slice(-2).join('/'),
-        state: pr.state,
-        created_at: pr.created_at,
-        merged_at: pr.pull_request?.merged_at || null
-      }));
+        author: userData._id,
+        link: pr.html_url,
+        is_open: pr.state === 'open',
+        is_merged: pr.pull_request?.merged_at !== null
+      }))
 
-      const { error: prError } = await supabase
-        .from('pull_requests')
-        .insert(prData);
-
-      if (prError) {
-        console.error('Error storing PRs:', prError);
-      }
+      await models.GitHubPR.insertMany(prData)
     }
 
-    console.log(`Stored ${prs.length} PRs for user ${username}`);
-    return { success: true, user: userData, prCount: prs.length };
+    return { success: true, user: userData, prCount: prs.length }
 
   } catch (error) {
     console.error('Error in storeUserAndPRs:', error);
@@ -120,65 +87,31 @@ export async function storeUserAndPRs(githubUser) {
   }
 }
 
-// Function to refresh a specific user's PR data (for webhooks)
 export async function refreshUserPRs(username) {
   try {
-    console.log(`Refreshing PR data for ${username}...`);
+    const user = await models.User.findOne({ username })
+    if (!user) return { success: false, error: 'User not found' }
+
+    const prs = await fetchUserPRsFromGitHub(username)
     
-    // Get user from database
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('username', username)
-      .single();
-
-    if (userError || !user) {
-      console.log(`User ${username} not found in database`);
-      return { success: false, error: 'User not found' };
-    }
-
-    // Fetch fresh PRs from GitHub
-    const prs = await fetchUserPRsFromGitHub(username);
-    console.log(`Found ${prs.length} PRs for ${username}`);
-
-    // Update user's PR count
-    await supabase
-      .from('users')
-      .update({
-        pr_count: prs.length,
-        last_updated: new Date().toISOString()
-      })
-      .eq('id', user.id);
-
-    // Delete old PRs
-    await supabase
-      .from('pull_requests')
-      .delete()
-      .eq('user_id', user.id);
-
-    // Store fresh PRs
+    // Remove old PRs and store new ones
+    await models.GitHubPR.deleteMany({ author: user._id })
+    
     if (prs.length > 0) {
       const prData = prs.map(pr => ({
-        user_id: user.id,
-        pr_number: pr.number,
+        github_id: pr.id,
         title: pr.title,
-        url: pr.html_url,
-        repository: pr.repository_url.split('/').slice(-2).join('/'),
-        state: pr.state,
-        created_at: pr.created_at,
-        merged_at: pr.pull_request?.merged_at || null
-      }));
-
-      await supabase
-        .from('pull_requests')
-        .insert(prData);
+        author: user._id,
+        link: pr.html_url,
+        is_open: pr.state === 'open',
+        is_merged: pr.pull_request?.merged_at !== null
+      }))
+      await models.GitHubPR.insertMany(prData)
     }
 
-    console.log(`Successfully refreshed PR data for ${username}`);
-    return { success: true, prCount: prs.length };
-
+    return { success: true, prCount: prs.length }
   } catch (error) {
-    console.error(`Error refreshing PRs for ${username}:`, error);
-    return { success: false, error: error.message };
+    console.error(`Error refreshing PRs for ${username}:`, error)
+    return { success: false, error: error.message }
   }
 }

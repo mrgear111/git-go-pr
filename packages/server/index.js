@@ -81,7 +81,7 @@ passport.use(
       // Store user and fetch PRs in background
       profile.accessToken = accessToken
 
-      // Store user and PRs in Supabase
+      // Store user and PRs in MongoDB
       try {
         const result = await storeUserAndPRs(profile)
         if (result.success) {

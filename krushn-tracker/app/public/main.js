@@ -1,7 +1,12 @@
-const { createApp, ref, computed } = Vue
+const { createApp, ref, computed, onMounted } = Vue
 
 createApp({
   setup() {
+
+    onMounted(() => {
+      M.AutoInit()
+    })
+
     const users = ref([])
     const colleges = ref([])
     const owners = ref([])

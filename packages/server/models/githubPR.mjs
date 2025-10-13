@@ -37,6 +37,10 @@ const GitHubPRSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    is_goodQuality: {
+      type: Boolean,
+      default: false,
+    },
     is_redFlagged: {
       type: Boolean,
       default: false,

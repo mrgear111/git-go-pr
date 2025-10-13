@@ -23,6 +23,19 @@ const GitHubRepositorySchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    redFlag_reason: {
+      type: String,
+      default: '',
+    },
+    redFlag_by: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    redFlag_at: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

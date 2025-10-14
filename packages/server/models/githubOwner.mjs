@@ -21,6 +21,10 @@ const GitHubOwnerSchema = new mongoose.Schema(
       required: true,
       default: 'User',
     },
+    link: {
+      type: String,
+      required: true,
+    },
   },
   {
     timestamps: true,

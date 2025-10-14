@@ -15,6 +15,10 @@ const GitHubRepositorySchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'GitHubOwner',
     },
+    link: {
+      type: String,
+      required: true,
+    },
     is_gosc: {
       type: Boolean,
       default: false,

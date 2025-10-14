@@ -115,26 +115,36 @@ import Navbar from '../components/Navbar.astro';
 
 
   interface User {
-    id: number;
+    _id: string;
     username: string;
     display_name: string | null;
     avatar_url: string | null;
     full_name: string | null;
     role: string | null;
-    college: string | null;
+    college: {
+      _id: string;
+      name: string;
+    } | null;
     year: string | null;
     instructor: string | null;
     pr_count: number;
   }
 
   interface PR {
-    id: number;
+    _id: string;
     pr_number: number;
     title: string;
     url: string;
-    repository: string;
+    repository: {
+      _id: string;
+      name: string;
+      owner: {
+        _id: string;
+        username: string;
+      };
+    };
     state: 'open' | 'closed' | 'merged';
-    created_at: string;
+    createdAt: string;
   }
 
 
@@ -187,19 +197,19 @@ import Navbar from '../components/Navbar.astro';
       usersData.users.forEach(user => {
         const row = document.createElement('tr');
         row.className = 'hover:bg-gray-800 border-t border-green-700';
-        
+
         // Build the row HTML with profile information
         const profileData = [
           // User avatar and display name
-          '<td class="px-6 py-4"><div class="flex items-center"><img class="h-10 w-10 rounded-full" src="' + (user.avatar_url || '/default-avatar.png') + '" alt="' + user.username + '"><div class="ml-4 text-sm font-mono text-green-100">' + (user.display_name || user.username) + '</div></div></td>',
+          '<td class="px-6 py-4"><div class="flex items-center"><img class="h-10 w-10 rounded-full" src="' + ('https://avatars.githubusercontent.com/' + user.username) + '" alt="' + user.username + '"><div class="ml-4 text-sm font-mono text-green-100">' + (user.display_name || user.username) + '</div></div></td>',
           // Username
           '<td class="px-6 py-4 text-sm text-green-300 font-mono">@' + user.username + '</td>',
           // Full Name (hidden on mobile)
           '<td class="px-6 py-4 text-sm text-green-100 font-mono hidden sm:table-cell">' + (user.full_name || '<span class="text-gray-500 italic">Not provided</span>') + '</td>',
           // Role (hidden on mobile)
-          '<td class="px-6 py-4 text-sm font-mono hidden sm:table-cell">' + (user.role ? '<span class="' + (user.role === 'Student' ? 'text-blue-400' : 'text-purple-400') + '">' + user.role + '</span>' : '<span class="text-gray-500 italic">Not provided</span>') + '</td>',
+          '<td class="px-6 py-4 text-sm font-mono hidden sm:table-cell">' + (user.role ? '<span class="' + (user.role === 'student' ? 'text-blue-400' : 'text-purple-400') + '">' + user.role + '</span>' : '<span class="text-gray-500 italic">Not provided</span>') + '</td>',
           // College (hidden on small screens)
-          '<td class="px-6 py-4 text-sm text-green-100 font-mono hidden md:table-cell">' + (user.college || '<span class="text-gray-500 italic">Not provided</span>') + '</td>',
+          '<td class="px-6 py-4 text-sm text-green-100 font-mono hidden md:table-cell">' + (user.college?.name || '<span class="text-gray-500 italic">Not provided</span>') + '</td>',
           // Year (hidden on medium screens and below)
           '<td class="px-6 py-4 text-sm text-green-100 font-mono hidden lg:table-cell">' + (user.year || '<span class="text-gray-500 italic">N/A</span>') + '</td>',
           // Instructor (hidden on medium screens and below)
@@ -207,7 +217,7 @@ import Navbar from '../components/Navbar.astro';
           // PR Count
           '<td class="px-6 py-4 text-sm text-green-100 font-mono">' + user.pr_count + '</td>',
           // Actions
-          '<td class="px-6 py-4 text-sm"><button onclick="viewUserPRs(' + user.id + ', \'' + user.username + '\')" class="text-green-400 hover:text-green-300 font-mono">View PRs</button></td>'
+          '<td class="px-6 py-4 text-sm"><button onclick="viewUserPRs(\'' + user._id + '\', \'' + user.username + '\')" class="text-green-400 hover:text-green-300 font-mono">View PRs</button></td>'
         ];
         
         row.innerHTML = profileData.join('');
@@ -225,7 +235,7 @@ import Navbar from '../components/Navbar.astro';
     }
   }
 
-  async function viewUserPRs(userId: number, username: string) {
+  async function viewUserPRs(userId: string, username: string) {
     try {
       const adminPassword = localStorage.getItem('adminPassword') || '';
       const response = await fetch(API_BASE + '/api/admin/users/' + userId + '/prs?adminPassword=' + encodeURIComponent(adminPassword));
@@ -247,9 +257,9 @@ import Navbar from '../components/Navbar.astro';
       } else {
         let html = '<div class="space-y-4">';
         data.prs.forEach((pr: PR) => {
-          const createdDate = new Date(pr.created_at).toLocaleDateString();
+          const createdDate = new Date(pr.createdAt).toLocaleDateString();
           const statusIcon = pr.state === 'open' ? '🟢' : '🟣';
-          html += '<div class="border border-green-700 rounded-lg p-4"><div class="flex justify-between items-start mb-2"><h4 class="text-green-100 font-mono">' + statusIcon + ' ' + pr.title + '</h4><span class="text-green-400 text-sm font-mono">#' + pr.pr_number + '</span></div><p class="text-green-300 text-sm font-mono mb-2">' + pr.repository + '</p><p class="text-green-400 text-sm font-mono mb-2">Created: ' + createdDate + '</p><a href="' + pr.url + '" target="_blank" class="text-blue-400 hover:text-blue-300 text-sm font-mono">View on GitHub →</a></div>';
+          html += '<div class="border border-green-700 rounded-lg p-4"><div class="flex justify-between items-start mb-2"><h4 class="text-green-100 font-mono">' + statusIcon + ' ' + pr.title + '</h4><span class="text-green-400 text-sm font-mono">#' + pr.pr_number + '</span></div><a class="text-green-300 text-sm font-mono mb-2" href="https://github.com/'+pr.repository.owner.username + "/" + pr.repository.name+'">' + pr.repository.owner.username + "/" + pr.repository.name + '</a><p class="text-green-400 text-sm font-mono mb-2">Created: ' + createdDate + '</p><a href="' + pr.url + '" target="_blank" class="text-blue-400 hover:text-blue-300 text-sm font-mono">View on GitHub →</a></div>';
         });
         html += '</div>';
         modalContent.innerHTML = html;
@@ -337,7 +347,7 @@ import Navbar from '../components/Navbar.astro';
 
   declare global {
     interface Window {
-      viewUserPRs: (userId: number, username: string) => void
+      viewUserPRs: (userId: string, username: string) => void
     }
   }
 

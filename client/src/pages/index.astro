@@ -1,15 +1,10 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import Navbar from "../components/Navbar.astro";
-import Footer from "../components/Footer.astro";
 import ContributionChart from "../components/ContributionChart.astro";
 ---
 
-<Layout title="Hacktoberfest 2025 Dashboard">
-  <Fragment slot="navbar">
-    <Navbar />
-  </Fragment>
-  <main class="min-h-screen bg-gradient-to-br from-black via-gray-900 to-green-900 font-mono">
+<Layout title="GitGoPR - Hacktoberfest 2025 Dashboard">
+  <div class="min-h-screen bg-gradient-to-br from-black via-gray-900 to-green-900 font-mono">
 
     <section class="relative text-white py-24 overflow-hidden">
       
@@ -185,11 +180,7 @@ import ContributionChart from "../components/ContributionChart.astro";
         </div>
       </div>
     </section>
-  </main>
-  
-  <Fragment slot="footer">
-    <Footer />
-  </Fragment>
+  </div>
 </Layout>
 
 <style>

@@ -1,0 +1,320 @@
+---
+import { NAV_LINKS } from '../../constants/navigation.js';
+import { Icon } from 'astro-icon/components';
+---
+
+<nav id="navbar" class="bg-gradient-to-r from-gray-900 via-black to-gray-900 backdrop-blur-lg shadow-2xl border-b border-green-900/20 sticky top-0 z-50 transition-all duration-300">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center h-16">
+      <!-- Logo Section -->
+      <div class="flex items-center gap-3 group">
+        <a href="/" class="flex items-center gap-3 hover:scale-105 transition-transform duration-300">
+          <div class="relative">
+            <img 
+              src="/logo.png" 
+              alt="GitGoPR Logo" 
+              class="h-10 w-10 rounded-lg shadow-lg ring-2 ring-green-500/50 group-hover:ring-green-400 transition-all duration-300"
+            >
+            <div class="absolute -inset-1 bg-green-500/20 rounded-lg blur-md group-hover:bg-green-400/30 transition-all duration-300"></div>
+          </div>
+          <div class="hidden sm:block">
+            <h1 class="text-2xl font-bold font-mono bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent">
+              GITGOPR
+            </h1>
+            <p class="text-xs text-green-300/80 font-mono -mt-1">
+              NST-SDC Dev Club
+            </p>
+          </div>
+        </a>
+      </div>
+
+      <!-- Desktop Navigation -->
+      <div class="hidden md:flex md:items-center md:gap-6">
+        {NAV_LINKS.map(link => (
+          <a 
+            href={link.href}
+            data-auth-hidden={link.authHidden}
+            class="nav-link relative text-gray-200 hover:text-green-400 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 font-mono group"
+          >
+            <span class="relative z-10 flex items-center gap-2">
+              <Icon name={link.icon} class="w-5 h-5" />
+              {link.name}
+            </span>
+            <div class="absolute inset-0 bg-green-500/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div class="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-green-400 to-emerald-400 group-hover:w-full transition-all duration-300"></div>
+          </a>
+        ))}
+        
+        <!-- Complete Profile Button (Hidden by default) -->
+        <a 
+          id="register-link-desktop"
+          href="/register"
+          class="hidden text-yellow-400 hover:text-yellow-300 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 font-mono bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 animate-pulse"
+        >
+          ⚠️ Complete Profile
+        </a>
+
+        <!-- Auth Area -->
+        <div id="auth-area" class="flex items-center gap-3"></div>
+
+        <!-- Dark Mode Toggle -->
+        <button 
+          id="theme-toggle"
+          aria-label="Toggle dark mode"
+          class="p-2 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 text-gray-300 hover:text-green-400 transition-all duration-300 border border-gray-700 hover:border-green-500/50"
+        >
+          <svg id="theme-icon-dark" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+          </svg>
+          <svg id="theme-icon-light" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Mobile Menu Button -->
+      <div class="md:hidden flex items-center gap-3">
+        <button 
+          id="theme-toggle-mobile"
+          aria-label="Toggle dark mode"
+          class="p-2 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 text-gray-300 hover:text-green-400 transition-all duration-300"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+          </svg>
+        </button>
+        <button 
+          id="mobile-menu-button"
+          type="button" 
+          class="text-gray-200 hover:text-green-400 focus:outline-none focus:ring-2 focus:ring-green-500 rounded-lg p-2 transition-all duration-300"
+          aria-label="Toggle mobile menu"
+        >
+          <svg id="menu-icon-open" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          <svg id="menu-icon-close" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Menu -->
+  <div id="mobile-menu" class="hidden md:hidden border-t border-gray-800 bg-gray-900/95 backdrop-blur-lg">
+    <div class="px-4 pt-2 pb-4 space-y-2">
+      {NAV_LINKS.map(link => (
+        <a 
+          href={link.href}
+          data-auth-hidden={link.authHidden}
+          class="nav-link-mobile flex items-center gap-3 text-gray-200 hover:text-green-400 hover:bg-green-500/10 px-4 py-3 rounded-lg text-base font-medium font-mono transition-all duration-300 border border-transparent hover:border-green-500/30"
+        >
+          <Icon name={link.icon} class="w-6 h-6" />
+          {link.name}
+        </a>
+      ))}
+      
+      <a 
+        id="register-link-mobile"
+        href="/register"
+        class="hidden flex items-center gap-3 text-yellow-400 hover:text-yellow-300 px-4 py-3 rounded-lg text-base font-medium font-mono bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 transition-all duration-300"
+      >
+        <span>⚠️</span>
+        Complete Profile
+      </a>
+
+      <div id="auth-area-mobile" class="pt-2 border-t border-gray-800 mt-2"></div>
+    </div>
+  </div>
+</nav>
+
+<script>
+  import { API_BASE_URL } from '../../utils/api.js';
+
+  // Mobile Menu Toggle
+  const mobileMenuButton = document.getElementById('mobile-menu-button');
+  const mobileMenu = document.getElementById('mobile-menu');
+  const menuIconOpen = document.getElementById('menu-icon-open');
+  const menuIconClose = document.getElementById('menu-icon-close');
+
+  mobileMenuButton?.addEventListener('click', () => {
+    mobileMenu?.classList.toggle('hidden');
+    menuIconOpen?.classList.toggle('hidden');
+    menuIconClose?.classList.toggle('hidden');
+  });
+
+  // Theme Toggle
+  const themeToggle = document.getElementById('theme-toggle');
+  const themeToggleMobile = document.getElementById('theme-toggle-mobile');
+  const themeIconDark = document.getElementById('theme-icon-dark');
+  const themeIconLight = document.getElementById('theme-icon-light');
+
+  function toggleTheme() {
+    const html = document.documentElement;
+    const isDark = html.classList.contains('dark');
+    
+    if (isDark) {
+      html.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+      themeIconDark?.classList.remove('hidden');
+      themeIconLight?.classList.add('hidden');
+    } else {
+      html.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+      themeIconDark?.classList.add('hidden');
+      themeIconLight?.classList.remove('hidden');
+    }
+  }
+
+  themeToggle?.addEventListener('click', toggleTheme);
+  themeToggleMobile?.addEventListener('click', toggleTheme);
+
+  // Initialize theme from localStorage
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'light') {
+    document.documentElement.classList.remove('dark');
+    themeIconDark?.classList.remove('hidden');
+    themeIconLight?.classList.add('hidden');
+  } else {
+    document.documentElement.classList.add('dark');
+    themeIconDark?.classList.add('hidden');
+    themeIconLight?.classList.remove('hidden');
+  }
+
+  // Auth State Management
+  async function renderAuthArea() {
+    const authArea = document.getElementById('auth-area');
+    const authAreaMobile = document.getElementById('auth-area-mobile');
+    const loginLinks = document.querySelectorAll('[data-auth-hidden="true"]');
+    const registerLinkDesktop = document.getElementById('register-link-desktop');
+    const registerLinkMobile = document.getElementById('register-link-mobile');
+    
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/me`, { credentials: 'include' });
+      
+      if (res.ok) {
+        const data = await res.json();
+        
+        if (data.authenticated && data.user) {
+          // Hide login links
+          loginLinks.forEach(link => link.classList.add('hidden'));
+          
+          // Check profile completion
+          const hasProfile = data.user.full_name && data.user.role && data.user.college;
+          
+          if (!hasProfile) {
+            registerLinkDesktop?.classList.remove('hidden');
+            registerLinkMobile?.classList.remove('hidden');
+          } else {
+            registerLinkDesktop?.classList.add('hidden');
+            registerLinkMobile?.classList.add('hidden');
+          }
+          
+          // Render user info
+          const username = data.user.username || data.user.login || data.user.displayName;
+          const avatar = data.user.avatar_url || `https://ui-avatars.com/api/?name=${username}`;
+          
+          const userHTML = `
+            <div class="flex items-center gap-3">
+              <img src="${avatar}" alt="${username}" class="w-8 h-8 rounded-full ring-2 ring-green-500/50">
+              <span class="text-green-100 text-sm font-mono hidden lg:block">@${username}</span>
+              <a 
+                href="${API_BASE_URL}/auth/logout" 
+                class="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 shadow-lg hover:shadow-red-500/50"
+              >
+                Sign Out
+              </a>
+            </div>
+          `;
+          
+          const userHTMLMobile = `
+            <div class="flex items-center justify-between gap-3 px-4 py-3">
+              <div class="flex items-center gap-3">
+                <img src="${avatar}" alt="${username}" class="w-10 h-10 rounded-full ring-2 ring-green-500/50">
+                <span class="text-green-100 text-sm font-mono">@${username}</span>
+              </div>
+              <a 
+                href="${API_BASE_URL}/auth/logout" 
+                class="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300"
+              >
+                Sign Out
+              </a>
+            </div>
+          `;
+          
+          if (authArea) authArea.innerHTML = userHTML;
+          if (authAreaMobile) authAreaMobile.innerHTML = userHTMLMobile;
+        } else {
+          // Not authenticated - show login links
+          loginLinks.forEach(link => link.classList.remove('hidden'));
+          registerLinkDesktop?.classList.add('hidden');
+          registerLinkMobile?.classList.add('hidden');
+          if (authArea) authArea.innerHTML = '';
+          if (authAreaMobile) authAreaMobile.innerHTML = '';
+        }
+      } else {
+        // Error - show login links
+        loginLinks.forEach(link => link.classList.remove('hidden'));
+        registerLinkDesktop?.classList.add('hidden');
+        registerLinkMobile?.classList.add('hidden');
+        if (authArea) authArea.innerHTML = '';
+        if (authAreaMobile) authAreaMobile.innerHTML = '';
+      }
+    } catch (err) {
+      console.warn('Auth fetch failed:', err);
+      loginLinks.forEach(link => link.classList.remove('hidden'));
+      registerLinkDesktop?.classList.add('hidden');
+      registerLinkMobile?.classList.add('hidden');
+      if (authArea) authArea.innerHTML = '';
+      if (authAreaMobile) authAreaMobile.innerHTML = '';
+    }
+  }
+
+  // Navbar scroll effect
+  let lastScroll = 0;
+  const navbar = document.getElementById('navbar');
+
+  window.addEventListener('scroll', () => {
+    const currentScroll = window.pageYOffset;
+    
+    if (currentScroll <= 0) {
+      navbar?.classList.remove('shadow-2xl');
+      navbar?.classList.add('shadow-lg');
+    } else {
+      navbar?.classList.remove('shadow-lg');
+      navbar?.classList.add('shadow-2xl');
+    }
+    
+    lastScroll = currentScroll;
+  });
+
+  // Initialize auth state
+  renderAuthArea();
+</script>
+
+<style>
+  /* Smooth animations */
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  #mobile-menu {
+    animation: slideDown 0.3s ease-out;
+  }
+
+  /* Active link indicator */
+  .nav-link.active {
+    color: #4ade80;
+  }
+
+  .nav-link.active::after {
+    width: 100%;
+  }
+</style>

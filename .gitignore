@@ -71,3 +71,45 @@ fetch_prs.js
 
 # Session data
 sessions/
+
+# ============ MongoDB ============
+# MongoDB data directory (if running locally)
+mongodb_data/
+data/db/
+
+# ============ Documentation (Optional) ============
+# Uncomment if you don't want to commit these to your PR
+# IMPLEMENTATION_SUMMARY.md
+# CONTRIBUTIONS_FEATURE.md
+# CONTRIBUTION_CHART_SUMMARY.md
+# LEADERBOARD_REDESIGN.md
+# ICON_MIGRATION.md
+# BACKEND_ENHANCEMENTS.md
+# FRONTEND_STRUCTURE.md
+
+# ============ Project Specific ============
+# Old backup files (already in repo, no need to track changes)
+client/src/components/old-backup/
+
+# Test scripts
+test-*.sh
+test-*.js
+
+# Local configuration backups
+*.backup
+*.bak
+
+# ============ Security ============
+# Never commit these
+*.pem
+*.key
+*.cert
+.secret
+secrets/
+
+# ============ Package Lock Files ============
+# Keep package-lock.json for reproducible builds
+# Only uncomment if team decides to gitignore
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml

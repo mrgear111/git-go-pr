@@ -1,5 +1,5 @@
-import { supabase } from './supabase.js';
 import fetch from 'node-fetch';
+import { User, PullRequest } from './models.js';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const START_DATE = '2025-10-01T00:00:00Z';
@@ -59,56 +59,43 @@ export async function storeUserAndPRs(githubUser) {
     console.log(`Found ${prs.length} PRs`);
 
     // Store/update user in database
-    console.log('Attempting to store user in Supabase...');
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .upsert({
+    console.log('Attempting to store user in MongoDB...');
+    const userData = await User.findOneAndUpdate(
+      { github_id: String(githubUser.id) },
+      {
         github_id: String(githubUser.id),
         username: username,
         display_name: displayName,
         avatar_url: avatarUrl,
         pr_count: prs.length,
-        last_updated: new Date().toISOString()
-      }, {
-        onConflict: 'github_id'
-      })
-      .select()
-      .single();
-
-    if (userError) {
-      console.error('Error storing user:', userError);
-      console.error('Full error details:', JSON.stringify(userError, null, 2));
-      return { success: false, error: userError };
-    }
+        last_updated: new Date()
+      },
+      { 
+        upsert: true, 
+        new: true,
+        setDefaultsOnInsert: true
+      }
+    );
 
     console.log('User stored successfully:', userData);
 
     // Delete existing PRs for this user (to update with fresh data)
-    await supabase
-      .from('pull_requests')
-      .delete()
-      .eq('user_id', userData.id);
+    await PullRequest.deleteMany({ user_id: userData._id });
 
     // Store PRs
     if (prs.length > 0) {
       const prData = prs.map(pr => ({
-        user_id: userData.id,
+        user_id: userData._id,
         pr_number: pr.number,
         title: pr.title,
         url: pr.html_url,
         repository: pr.repository_url.split('/').slice(-2).join('/'),
         state: pr.state,
-        created_at: pr.created_at,
-        merged_at: pr.pull_request?.merged_at || null
+        created_at: new Date(pr.created_at),
+        merged_at: pr.pull_request?.merged_at ? new Date(pr.pull_request.merged_at) : null
       }));
 
-      const { error: prError } = await supabase
-        .from('pull_requests')
-        .insert(prData);
-
-      if (prError) {
-        console.error('Error storing PRs:', prError);
-      }
+      await PullRequest.insertMany(prData);
     }
 
     console.log(`Stored ${prs.length} PRs for user ${username}`);
@@ -126,13 +113,9 @@ export async function refreshUserPRs(username) {
     console.log(`Refreshing PR data for ${username}...`);
     
     // Get user from database
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('username', username)
-      .single();
+    const user = await User.findOne({ username: username });
 
-    if (userError || !user) {
+    if (!user) {
       console.log(`User ${username} not found in database`);
       return { success: false, error: 'User not found' };
     }
@@ -142,36 +125,28 @@ export async function refreshUserPRs(username) {
     console.log(`Found ${prs.length} PRs for ${username}`);
 
     // Update user's PR count
-    await supabase
-      .from('users')
-      .update({
-        pr_count: prs.length,
-        last_updated: new Date().toISOString()
-      })
-      .eq('id', user.id);
+    await User.findByIdAndUpdate(user._id, {
+      pr_count: prs.length,
+      last_updated: new Date()
+    });
 
     // Delete old PRs
-    await supabase
-      .from('pull_requests')
-      .delete()
-      .eq('user_id', user.id);
+    await PullRequest.deleteMany({ user_id: user._id });
 
     // Store fresh PRs
     if (prs.length > 0) {
       const prData = prs.map(pr => ({
-        user_id: user.id,
+        user_id: user._id,
         pr_number: pr.number,
         title: pr.title,
         url: pr.html_url,
         repository: pr.repository_url.split('/').slice(-2).join('/'),
         state: pr.state,
-        created_at: pr.created_at,
-        merged_at: pr.pull_request?.merged_at || null
+        created_at: new Date(pr.created_at),
+        merged_at: pr.pull_request?.merged_at ? new Date(pr.pull_request.merged_at) : null
       }));
 
-      await supabase
-        .from('pull_requests')
-        .insert(prData);
+      await PullRequest.insertMany(prData);
     }
 
     console.log(`Successfully refreshed PR data for ${username}`);

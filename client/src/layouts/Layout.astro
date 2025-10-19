@@ -1,32 +1,66 @@
 ---
-const { title = "Hacktoberfest Tracker 2025" } = Astro.props;
+const { title = "GitGoPR - Hacktoberfest Tracker 2025" } = Astro.props;
 import "../styles/global.css";
+import Navbar from "../components/layout/Navbar.astro";
+import Footer from "../components/layout/Footer.astro";
 ---
 
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title}</title>
-    <meta name="description" content="Track your Hacktoberfest 2025 contributions and discover open source projects." />
+    <meta name="description" content="Track your Hacktoberfest 2025 contributions, view leaderboards, and celebrate open source with GitGoPR by NST-SDC Dev Club." />
+    <meta name="keywords" content="Hacktoberfest, GitHub, Pull Requests, Open Source, NST-SDC, Dev Club" />
+    <meta name="author" content="NST-SDC Dev Club" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content="Track your Hacktoberfest 2025 contributions and discover open source projects." />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:title" content={title} />
+    <meta property="twitter:description" content="Track your Hacktoberfest 2025 contributions and discover open source projects." />
   </head>
-  <body class="bg-gray-50 min-h-screen">
+  <body class="bg-gradient-to-br from-gray-50 via-gray-100 to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900 min-h-screen transition-colors duration-300">
     <!-- Navbar -->
-    <slot name="navbar" />
+    <Navbar />
 
     <!-- Main Content -->
-    <main class="min-h-screen">
+    <main class="min-h-[calc(100vh-16rem)]">
       <slot />
     </main>
 
     <!-- Footer -->
-    <slot name="footer" />
+    <Footer />
   </body>
 </html>
 
-<style>
+<style is:global>
   html {
-    font-family: system-ui, sans-serif;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    scroll-behavior: smooth;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #1a1a1a;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #4ade80;
+    border-radius: 5px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #22c55e;
   }
 </style>

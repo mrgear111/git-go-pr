@@ -1,21 +1,9 @@
 ---
+import Layout from '../layouts/Layout.astro';
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Login - GITGOTPR</title>
-		<style>
-			html {
-				font-family: system-ui, sans-serif;
-			}
-		</style>
-	</head>
-	<body class="bg-black text-green-100">
-		<div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+<Layout title="Login - GitGoPR">
+	<div class="min-h-screen bg-black text-green-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
 			<div class="max-w-md w-full space-y-8">
 				<div>
 					<div class="mx-auto h-12 w-12 flex items-center justify-center">
@@ -124,5 +112,5 @@
 				setTimeout(checkAuthStatus, 100); // Small delay to allow session to be set
 			}
 		</script>
-	</body>
-</html>
+	</div>
+</Layout>

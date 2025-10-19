@@ -1,0 +1,216 @@
+---
+import { SOCIAL_LINKS, FOOTER_LINKS } from '../../constants/navigation.js';
+import { Icon } from 'astro-icon/components';
+---
+
+<footer class="relative bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white border-t border-green-900/20">
+  <!-- Gradient overlay -->
+  <div class="absolute inset-0 bg-gradient-to-t from-green-900/10 via-transparent to-transparent pointer-events-none"></div>
+  
+  <div class="relative max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+    <!-- Main Footer Content -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
+      
+      <!-- Brand Section -->
+      <div class="lg:col-span-1">
+        <div class="flex items-center gap-3 mb-4">
+          <img 
+            src="/logo.png" 
+            alt="GitGoPR Logo" 
+            class="h-12 w-12 rounded-lg shadow-lg ring-2 ring-green-500/50"
+          >
+          <div>
+            <h3 class="text-2xl font-bold font-mono bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent">
+              GITGOPR
+            </h3>
+            <p class="text-xs text-green-300/80 font-mono">
+              NST-SDC Dev Club
+            </p>
+          </div>
+        </div>
+        <p class="text-gray-300 text-sm leading-relaxed mb-4">
+          Track your open-source contributions during Hacktoberfest 2025. Celebrate the amazing work from developers worldwide.
+        </p>
+        
+        <!-- Social Links -->
+        <div class="flex gap-3">
+          {SOCIAL_LINKS.map(social => (
+            <a
+              href={social.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="group p-3 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700 hover:border-green-500/50 transition-all duration-300"
+              aria-label={social.name}
+            >
+              <Icon 
+                name={social.icon} 
+                class="w-5 h-5 text-gray-300 group-hover:text-green-400 transition-colors duration-300"
+              />
+            </a>
+          ))}
+        </div>
+      </div>
+
+      <!-- About Links -->
+      <div>
+        <h3 class="text-lg font-semibold mb-4 text-white font-mono bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+          About
+        </h3>
+        <ul class="space-y-2">
+          {FOOTER_LINKS.about.map(link => (
+            <li>
+              <a 
+                href={link.href}
+                class="text-gray-300 hover:text-green-400 transition-colors duration-300 text-sm flex items-center gap-2 group"
+              >
+                <span class="w-0 h-px bg-green-400 group-hover:w-4 transition-all duration-300"></span>
+                {link.name}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <!-- Resources Links -->
+      <div>
+        <h3 class="text-lg font-semibold mb-4 text-white font-mono bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+          Resources
+        </h3>
+        <ul class="space-y-2">
+          {FOOTER_LINKS.resources.map(link => (
+            <li>
+              <a 
+                href={link.href}
+                target={link.external ? '_blank' : undefined}
+                rel={link.external ? 'noopener noreferrer' : undefined}
+                class="text-gray-300 hover:text-green-400 transition-colors duration-300 text-sm flex items-center gap-2 group"
+              >
+                <span class="w-0 h-px bg-green-400 group-hover:w-4 transition-all duration-300"></span>
+                {link.name}
+                {link.external && (
+                  <svg class="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                )}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <!-- Community Links -->
+      <div>
+        <h3 class="text-lg font-semibold mb-4 text-white font-mono bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+          Community
+        </h3>
+        <ul class="space-y-2">
+          {FOOTER_LINKS.community.map(link => (
+            <li>
+              <a 
+                href={link.href}
+                class="text-gray-300 hover:text-green-400 transition-colors duration-300 text-sm flex items-center gap-2 group"
+              >
+                <span class="w-0 h-px bg-green-400 group-hover:w-4 transition-all duration-300"></span>
+                {link.name}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+
+    <!-- Divider with Gradient -->
+    <div class="relative h-px my-8">
+      <div class="absolute inset-0 bg-gradient-to-r from-transparent via-green-500/50 to-transparent"></div>
+    </div>
+
+    <!-- Bottom Section -->
+    <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+      <div class="text-center md:text-left">
+        <p class="text-gray-400 text-sm font-mono">
+          © {new Date().getFullYear()} <span class="text-green-400 font-semibold">GitGoPR</span> - Built with 💚 by NST-SDC Dev Club
+        </p>
+        <p class="text-gray-500 text-xs mt-1">
+          Supporting Hacktoberfest 2025 and open-source community
+        </p>
+      </div>
+
+      <!-- Quick Stats or Badge -->
+      <div class="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-green-900/30 to-emerald-900/30 border border-green-500/30">
+        <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+        </svg>
+        <span class="text-green-400 text-sm font-mono font-semibold">Hacktoberfest 2025</span>
+      </div>
+    </div>
+
+    <!-- Scroll to Top Button -->
+    <button 
+      id="scroll-to-top"
+      class="fixed bottom-8 right-8 p-3 rounded-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white shadow-lg hover:shadow-green-500/50 transition-all duration-300 opacity-0 pointer-events-none z-40"
+      aria-label="Scroll to top"
+    >
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+      </svg>
+    </button>
+  </div>
+
+  <!-- Animated Background Pattern -->
+  <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-green-500/0 via-green-500/50 to-green-500/0"></div>
+</footer>
+
+<script>
+  // Scroll to Top Button
+  const scrollButton = document.getElementById('scroll-to-top');
+
+  window.addEventListener('scroll', () => {
+    if (window.pageYOffset > 300) {
+      scrollButton?.classList.remove('opacity-0', 'pointer-events-none');
+      scrollButton?.classList.add('opacity-100', 'pointer-events-auto');
+    } else {
+      scrollButton?.classList.add('opacity-0', 'pointer-events-none');
+      scrollButton?.classList.remove('opacity-100', 'pointer-events-auto');
+    }
+  });
+
+  scrollButton?.addEventListener('click', () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  });
+</script>
+
+<style>
+  /* Subtle hover animations for links */
+  footer a {
+    position: relative;
+  }
+
+  /* Gradient animation on social icons */
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4);
+    }
+    50% {
+      box-shadow: 0 0 20px 5px rgba(74, 222, 128, 0.2);
+    }
+  }
+
+  /* Scroll to top button animation */
+  #scroll-to-top {
+    animation: fadeIn 0.3s ease-in;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>

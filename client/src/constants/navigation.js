@@ -24,17 +24,17 @@ export const NAV_LINKS = [
 export const SOCIAL_LINKS = [
   {
     name: 'GitHub',
-    href: 'https://github.com/CodeMaverick-143',
+    href: 'https://github.com/nst-sdc',
     icon: 'mdi:github'
   },
   {
     name: 'LinkedIn',
-    href: 'https://www.linkedin.com/in/arpit-sarang/',
+    href: 'https://www.linkedin.com/company/nst-sdc',
     icon: 'mdi:linkedin'
   },
   {
-    name: 'Twitter',
-    href: 'https://twitter.com/nstsdc',
+    name: 'X',
+    href: 'https://x.com/NSTSDC_',
     icon: 'mdi:twitter'
   }
 ];

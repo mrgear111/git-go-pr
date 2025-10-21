@@ -159,6 +159,19 @@ const pullRequestSchema = new mongoose.Schema({
   merged_at: {
     type: Date,
     default: null
+  },
+  labels: {
+    type: [String],
+    default: []
+  },
+  repository_topics: {
+    type: [String],
+    default: []
+  },
+  is_hacktoberfest: {
+    type: Boolean,
+    default: false,
+    index: true
   }
 }, {
   timestamps: true
@@ -167,9 +180,57 @@ const pullRequestSchema = new mongoose.Schema({
 // Create compound index for unique constraint
 pullRequestSchema.index({ user_id: 1, pr_number: 1, repository: 1 }, { unique: true });
 
+// Hacktoberfest Cache Schema
+const hacktoberfestCacheSchema = new mongoose.Schema({
+  username: {
+    type: String,
+    required: true,
+    unique: true,
+    index: true
+  },
+  year: {
+    type: Number,
+    required: true
+  },
+  count: {
+    type: Number,
+    default: 0
+  },
+  prs: [{
+    title: String,
+    number: Number,
+    url: String,
+    repository: String,
+    repositoryUrl: String,
+    createdAt: Date,
+    mergedAt: Date,
+    labels: [String],
+    topics: [String]
+  }],
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+    index: true
+  },
+  apiCalls: {
+    type: Number,
+    default: 0
+  },
+  totalFetched: {
+    type: Number,
+    default: 0
+  }
+}, {
+  timestamps: true
+});
+
+// TTL index: auto-delete documents older than 12 hours
+hacktoberfestCacheSchema.index({ updatedAt: 1 }, { expireAfterSeconds: 43200 }); // 12 hours
+
 // Create models
 const User = mongoose.model('User', userSchema);
 const PullRequest = mongoose.model('PullRequest', pullRequestSchema);
 const RepoStats = mongoose.model('RepoStats', repoStatsSchema);
+const HacktoberfestCache = mongoose.model('HacktoberfestCache', hacktoberfestCacheSchema);
 
-export { User, PullRequest, RepoStats };
+export { User, PullRequest, RepoStats, HacktoberfestCache };

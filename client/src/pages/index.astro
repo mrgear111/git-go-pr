@@ -1,6 +1,7 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import ContributionChart from "../components/ContributionChart.astro";
+import WeeklyContributors from "../components/WeeklyContributors.astro";
 ---
 
 <Layout title="GitGoPR - Hacktoberfest 2025 Dashboard">
@@ -148,6 +149,9 @@ import ContributionChart from "../components/ContributionChart.astro";
         </div>
       </div>
     </section>
+
+    <!-- Top Weekly Contributors -->
+    <WeeklyContributors />
 
     <!-- Enhanced Call to Action -->
     <section class="relative text-white py-24 overflow-hidden">

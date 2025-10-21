@@ -1,10 +1,13 @@
-import { populate } from 'dotenv'
+import dotenv from 'dotenv'
 import models from '../models/index.mjs'
 import { refreshUserPRs } from '../services/prService.js'
 
+dotenv.config();
 const { User, GitHubPR } = models
 
 export async function getAllUsers(req, res) {
+
+  let searchQuery = req.query.search || "";
   try {
     const usersWithPRs = await GitHubPR.aggregate([
       {
@@ -46,6 +49,7 @@ export async function getAllUsers(req, res) {
                 avatar_url: 1,
                 role: 1,
                 college: { $arrayElemAt: ['$college', 0] },
+                year: 1,
               },
             },
           ],
@@ -53,6 +57,11 @@ export async function getAllUsers(req, res) {
       },
       {
         $unwind: '$user',
+      },
+      {
+        $match: {
+          'user.username': { $regex: new RegExp(`^${searchQuery}`, 'i') },
+        },
       },
       {
         $replaceRoot: {

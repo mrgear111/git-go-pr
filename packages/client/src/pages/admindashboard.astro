@@ -59,6 +59,7 @@ import Navbar from '../components/Navbar.astro';
             <p class="text-green-300 font-mono text-sm mt-1">Complete user profiles and activity</p>
           </div>
           <div class="overflow-x-auto">
+            <div class="px-6 py-4 border-b border-green-600" ><input id="searchUser" class="px-6 py-4 border-b border-green-600 w-full bg-gray-900 text-white" name="searchUser" placeholder="Search for username..." /></div>
             <table class="min-w-full">
               <thead class="bg-gray-800">
                 <tr>
@@ -148,6 +149,22 @@ import Navbar from '../components/Navbar.astro';
   }
 
 
+let debounceTimer=0;
+
+function debounce(func, delay) {
+  return (...args) => {
+    clearTimeout(debounceTimer);
+    debounceTimer = window.setTimeout(() => func(...args), delay);
+  };
+}
+
+// Wrap your loadDashboardData with debounce
+const debouncedLoadDashboardData = debounce(loadDashboardData, 300);
+
+// Example: if search input triggers loading
+document.getElementById('searchUser')?.addEventListener('input', () => {
+  debouncedLoadDashboardData();
+});
 
   async function loadDashboardData() {
     if (!checkAdminAuth()) return;
@@ -155,7 +172,7 @@ import Navbar from '../components/Navbar.astro';
     const loadingElem = document.getElementById('loading') as HTMLElement;
     const dashboardContent = document.getElementById('dashboard-content') as HTMLElement;
     const errorElem = document.getElementById('error') as HTMLElement;
-
+    const queryElement = document.getElementById('searchUser') as HTMLElement;
     
     try {
       // Load stats with admin password
@@ -180,7 +197,7 @@ import Navbar from '../components/Navbar.astro';
       openPRsElem.textContent = stats.openPRs;
       mergedPRsElem.textContent = stats.mergedPRs;
 
-      const usersResponse = await fetch(API_BASE + '/api/admin/users?adminPassword=' + encodeURIComponent(adminPassword));
+      const usersResponse = await fetch(`${API_BASE}/api/admin/users?adminPassword=${encodeURIComponent(adminPassword)}&search=${encodeURIComponent(queryElement.value)}`);
       
       if (usersResponse.status === 401) {
         localStorage.removeItem('adminPassword');
@@ -196,6 +213,7 @@ import Navbar from '../components/Navbar.astro';
       
       usersData.users.forEach(user => {
         const row = document.createElement('tr');
+        row.id=user.username
         row.className = 'hover:bg-gray-800 border-t border-green-700';
 
         // Build the row HTML with profile information
@@ -223,8 +241,6 @@ import Navbar from '../components/Navbar.astro';
         row.innerHTML = profileData.join('');
         tableBody.appendChild(row);
       });
-
-
 
       loadingElem.classList.add('hidden');
       dashboardContent.classList.remove('hidden');
@@ -258,8 +274,8 @@ import Navbar from '../components/Navbar.astro';
         let html = '<div class="space-y-4">';
         data.prs.forEach((pr: PR) => {
           const createdDate = new Date(pr.createdAt).toLocaleDateString();
-          const statusIcon = pr.state === 'open' ? '🟢' : '🟣';
-          html += '<div class="border border-green-700 rounded-lg p-4"><div class="flex justify-between items-start mb-2"><h4 class="text-green-100 font-mono">' + statusIcon + ' ' + pr.title + '</h4><span class="text-green-400 text-sm font-mono">#' + pr.pr_number + '</span></div><a class="text-green-300 text-sm font-mono mb-2" href="https://github.com/'+pr.repository.owner.username + "/" + pr.repository.name+'">' + pr.repository.owner.username + "/" + pr.repository.name + '</a><p class="text-green-400 text-sm font-mono mb-2">Created: ' + createdDate + '</p><a href="' + pr.url + '" target="_blank" class="text-blue-400 hover:text-blue-300 text-sm font-mono">View on GitHub →</a></div>';
+          const statusIcon = pr.is_open == true ? '🟢' : (pr.is_merged == true)? '🟣' : '🔴';
+          html += '<div class="border border-green-700 rounded-lg p-4"><div class="flex justify-between items-start mb-2"><h4 class="text-green-100 font-mono">' + statusIcon + ' ' + pr.title + '</h4><span class="text-green-400 text-sm font-mono">#' + pr.pr_number + '</span></div><a class="text-green-300 text-sm font-mono mb-2" href="https://github.com/'+pr.repository.owner.username + "/" + pr.repository.name+'">' + pr.repository.owner.username + "/" + pr.repository.name + '</a><p class="text-green-400 text-sm font-mono mb-2">Created: ' + createdDate + '</p><a href="' + (pr.link||"") + '" target="_blank" class="text-blue-400 hover:text-blue-300 text-sm font-mono">View on GitHub →</a></div>';
         });
         html += '</div>';
         modalContent.innerHTML = html;

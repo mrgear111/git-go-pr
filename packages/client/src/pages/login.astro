@@ -1,5 +1,5 @@
 ---
-
+import AuthStatus from '../components/AuthStatus.astro';
 ---
 
 <html lang="en">
@@ -40,7 +40,7 @@
           </p>
         </div>
         <div class="mt-8 space-y-6">
-          <div id="auth-status" class="text-center text-sm"></div>
+          <AuthStatus />
 
           <div id="login-section">
             <a
@@ -111,12 +111,12 @@
 
     <script>
       async function checkAuthStatus() {
-        const authStatus = document.getElementById('auth-status')
-        const loginSection = document.getElementById('login-section')
-        const userSection = document.getElementById('user-section')
-        const userAvatar = document.getElementById('user-avatar')
-        const userName = document.getElementById('user-name')
-        const userUsername = document.getElementById('user-username')
+        const authStatusElement = document.querySelector('[data-auth-status]') as HTMLElement;
+        const loginSection = document.getElementById('login-section') as HTMLElement;
+        const userSection = document.getElementById('user-section') as HTMLElement;
+        const userAvatar = document.getElementById('user-avatar') as HTMLImageElement;
+        const userName = document.getElementById('user-name') as HTMLElement;
+        const userUsername = document.getElementById('user-username') as HTMLElement;
         const API_BASE =
           import.meta.env.MODE == 'development' ? 'http://localhost:4000' : ''
 
@@ -129,32 +129,39 @@
             const data = await res.json()
             if (data.authenticated && data.user) {
               // User is logged in
-              loginSection.classList.add('hidden')
-              userSection.classList.remove('hidden')
+              if (loginSection) loginSection.classList.add('hidden')
+              if (userSection) userSection.classList.remove('hidden')
 
-              userAvatar.src =
-                data.user.photos?.[0]?.value || data.user.avatar_url || ''
-              userName.textContent =
-                data.user.displayName || data.user.name || 'GitHub User'
-              userUsername.textContent =
-                '@' + (data.user.username || data.user.login || '')
+              if (userAvatar) {
+                userAvatar.src = data.user.photos?.[0]?.value || data.user.avatar_url || ''
+              }
+              if (userName) {
+                userName.textContent = data.user.displayName || data.user.name || 'GitHub User'
+              }
+              if (userUsername) {
+                userUsername.textContent = '@' + (data.user.username || data.user.login || '')
+              }
 
-              authStatus.innerHTML =
-                '<span class="text-green-400">✓ Successfully signed in</span>'
+              if (authStatusElement && window.updateAuthStatus) {
+                window.updateAuthStatus(authStatusElement, 'success');
+              }
             } else {
               // Not authenticated
-              authStatus.innerHTML =
-                '<span class="text-yellow-400">Please sign in to continue</span>'
+              if (authStatusElement && window.updateAuthStatus) {
+                window.updateAuthStatus(authStatusElement, 'pending');
+              }
             }
           } else {
             // Not authenticated
-            authStatus.innerHTML =
-              '<span class="text-yellow-400">Please sign in to continue</span>'
+            if (authStatusElement && window.updateAuthStatus) {
+              window.updateAuthStatus(authStatusElement, 'pending');
+            }
           }
         } catch (err) {
           console.warn('Auth check failed:', err)
-          authStatus.innerHTML =
-            '<span class="text-red-400">Unable to connect to auth server</span>'
+          if (authStatusElement && window.updateAuthStatus) {
+            window.updateAuthStatus(authStatusElement, 'error');
+          }
         }
       }
 

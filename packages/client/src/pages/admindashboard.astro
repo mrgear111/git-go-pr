@@ -1,6 +1,9 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Navbar from '../components/Navbar.astro';
+import StatusMessage from '../components/StatusMessage.astro';
+import UserTable from '../components/UserTable.astro';
+import PRModal from '../components/PRModal.astro';
 ---
 
 <Layout title="Admin Dashboard - GITGOPR">
@@ -27,7 +30,7 @@ import Navbar from '../components/Navbar.astro';
         <p class="mt-4 text-green-300 font-mono">Loading dashboard data...</p>
       </div>
 
-      <div id="refresh-status" class="hidden mb-6 border rounded-lg p-4"></div>
+      <StatusMessage id="refresh-status" />
 
       <div id="error" class="hidden bg-red-900 border border-red-600 rounded-lg p-4 mb-6">
         <p class="text-red-100 font-mono">Error loading data. Please try again.</p>
@@ -53,44 +56,11 @@ import Navbar from '../components/Navbar.astro';
           </div>
         </div>
 
-        <div class="bg-gray-900 border border-green-600 rounded-lg overflow-hidden">
-          <div class="px-6 py-4 border-b border-green-600">
-            <h2 class="text-xl font-semibold text-green-400 font-mono">Registered Users</h2>
-            <p class="text-green-300 font-mono text-sm mt-1">Complete user profiles and activity</p>
-          </div>
-          <div class="overflow-x-auto">
-            <div class="px-6 py-4 border-b border-green-600" ><input id="searchUser" class="px-6 py-4 border-b border-green-600 w-full bg-gray-900 text-white" name="searchUser" placeholder="Search by username..." /></div>
-            <table class="min-w-full">
-              <thead class="bg-gray-800">
-                <tr>
-                  <th class="px-6 py-3 text-left text-xs font-mono text-green-300">User</th>
-                  <th class="px-6 py-3 text-left text-xs font-mono text-green-300">Username</th>
-                  <th class="px-6 py-3 text-left text-xs font-mono text-green-300 hidden sm:table-cell">Full Name</th>
-                  <th class="px-6 py-3 text-left text-xs font-mono text-green-300 hidden sm:table-cell">Role</th>
-                  <th class="px-6 py-3 text-left text-xs font-mono text-green-300 hidden md:table-cell">College</th>
-                  <th class="px-6 py-3 text-left text-xs font-mono text-green-300 hidden lg:table-cell">Year</th>
-                  <th class="px-6 py-3 text-left text-xs font-mono text-green-300 hidden lg:table-cell">Instructor</th>
-                  <th class="px-6 py-3 text-left text-xs font-mono text-green-300">PR Count</th>
-                  <th class="px-6 py-3 text-left text-xs font-mono text-green-300">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="users-table-body" class="bg-gray-900">
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <UserTable id="users-table-body" />
       </div>
     </div>
 
-    <div id="pr-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div class="bg-gray-900 border border-green-600 rounded-lg max-w-4xl w-full max-h-96 overflow-y-auto">
-        <div class="px-6 py-4 border-b border-green-600 flex justify-between items-center">
-          <h3 class="text-xl font-semibold text-green-400 font-mono" id="modal-title">User PRs</h3>
-          <button id="close-modal" class="text-green-300 hover:text-green-100 text-xl">&times;</button>
-        </div>
-        <div class="p-6" id="modal-content"></div>
-      </div>
-    </div>
+    <PRModal />
   </main>
 </Layout>
 
@@ -112,7 +82,7 @@ import Navbar from '../components/Navbar.astro';
     return true;
   }
 
-  const prModalElem = document.getElementById('pr-modal') as HTMLElement;
+
 
 
   interface User {
@@ -129,6 +99,7 @@ import Navbar from '../components/Navbar.astro';
     year: string | null;
     instructor: string | null;
     pr_count: number;
+    github_prs: any[] | null;
   }
 
   interface PR {
@@ -149,22 +120,6 @@ import Navbar from '../components/Navbar.astro';
   }
 
 
-let debounceTimer=0;
-
-function debounce(func, delay) {
-  return (...args) => {
-    clearTimeout(debounceTimer);
-    debounceTimer = window.setTimeout(() => func(...args), delay);
-  };
-}
-
-// Wrap your loadDashboardData with debounce
-const debouncedLoadDashboardData = debounce(loadDashboardData, 300);
-
-// Example: if search input triggers loading
-document.getElementById('searchUser')?.addEventListener('input', () => {
-  debouncedLoadDashboardData();
-});
 
   async function loadDashboardData() {
     if (!checkAdminAuth()) return;
@@ -172,7 +127,7 @@ document.getElementById('searchUser')?.addEventListener('input', () => {
     const loadingElem = document.getElementById('loading') as HTMLElement;
     const dashboardContent = document.getElementById('dashboard-content') as HTMLElement;
     const errorElem = document.getElementById('error') as HTMLElement;
-    const queryElement = document.getElementById('searchUser') as HTMLElement;
+
     
     try {
       // Load stats with admin password
@@ -197,7 +152,7 @@ document.getElementById('searchUser')?.addEventListener('input', () => {
       openPRsElem.textContent = stats.openPRs;
       mergedPRsElem.textContent = stats.mergedPRs;
 
-      const usersResponse = await fetch(`${API_BASE}/api/admin/users?adminPassword=${encodeURIComponent(adminPassword)}&search=${encodeURIComponent(queryElement.value)}`);
+      const usersResponse = await fetch(API_BASE + '/api/admin/users?adminPassword=' + encodeURIComponent(adminPassword));
       
       if (usersResponse.status === 401) {
         localStorage.removeItem('adminPassword');
@@ -207,40 +162,14 @@ document.getElementById('searchUser')?.addEventListener('input', () => {
       }
 
       const usersData: { users: User[] } = await usersResponse.json();
-      const tableBody = document.getElementById('users-table-body') as HTMLElement;
-      tableBody.innerHTML = '';
-
       
-      usersData.users.forEach(user => {
-        const row = document.createElement('tr');
-        row.id=user.username
-        row.className = 'hover:bg-gray-800 border-t border-green-700';
+      // Use template-based user table rendering
+      const tableBody = document.querySelector('[data-user-table]') as HTMLElement;
+      if (tableBody && window.populateUserTable) {
+        window.populateUserTable(tableBody, usersData.users);
+      }
 
-        // Build the row HTML with profile information
-        const profileData = [
-          // User avatar and display name
-          '<td class="px-6 py-4"><div class="flex items-center"><img class="h-10 w-10 rounded-full" src="' + ('https://avatars.githubusercontent.com/' + user.username) + '" alt="' + user.username + '"><div class="ml-4 text-sm font-mono text-green-100">' + (user.display_name || user.username) + '</div></div></td>',
-          // Username
-          '<td class="px-6 py-4 text-sm text-green-300 font-mono">@' + user.username + '</td>',
-          // Full Name (hidden on mobile)
-          '<td class="px-6 py-4 text-sm text-green-100 font-mono hidden sm:table-cell">' + (user.full_name || '<span class="text-gray-500 italic">Not provided</span>') + '</td>',
-          // Role (hidden on mobile)
-          '<td class="px-6 py-4 text-sm font-mono hidden sm:table-cell">' + (user.role ? '<span class="' + (user.role === 'student' ? 'text-blue-400' : 'text-purple-400') + '">' + user.role + '</span>' : '<span class="text-gray-500 italic">Not provided</span>') + '</td>',
-          // College (hidden on small screens)
-          '<td class="px-6 py-4 text-sm text-green-100 font-mono hidden md:table-cell">' + (user.college?.name || '<span class="text-gray-500 italic">Not provided</span>') + '</td>',
-          // Year (hidden on medium screens and below)
-          '<td class="px-6 py-4 text-sm text-green-100 font-mono hidden lg:table-cell">' + (user.year || '<span class="text-gray-500 italic">N/A</span>') + '</td>',
-          // Instructor (hidden on medium screens and below)
-          '<td class="px-6 py-4 text-sm text-green-100 font-mono hidden lg:table-cell">' + (user.instructor || '<span class="text-gray-500 italic">Not provided</span>') + '</td>',
-          // PR Count
-          '<td class="px-6 py-4 text-sm text-green-100 font-mono">' + user.pr_count + '</td>',
-          // Actions
-          '<td class="px-6 py-4 text-sm"><button onclick="viewUserPRs(\'' + user._id + '\', \'' + user.username + '\')" class="text-green-400 hover:text-green-300 font-mono">View PRs</button></td>'
-        ];
-        
-        row.innerHTML = profileData.join('');
-        tableBody.appendChild(row);
-      });
+
 
       loadingElem.classList.add('hidden');
       dashboardContent.classList.remove('hidden');
@@ -264,37 +193,25 @@ document.getElementById('searchUser')?.addEventListener('input', () => {
       }
       
       const data = await response.json();
-      const modalTitle = document.getElementById('modal-title') as HTMLElement;
-      const modalContent = document.getElementById('modal-content') as HTMLElement;
-      modalTitle.textContent = 'PRs by @' + username;
       
-      if (data.prs.length === 0) {
-        modalContent.innerHTML = '<p class="text-green-300 font-mono">No PRs found.</p>';
-      } else {
-        let html = '<div class="space-y-4">';
-        data.prs.forEach((pr: PR) => {
-          const createdDate = new Date(pr.createdAt).toLocaleDateString();
-          const statusIcon = pr.is_open == true ? '🟢' : (pr.is_merged == true)? '🟣' : '🔴';
-          html += '<div class="border border-green-700 rounded-lg p-4"><div class="flex justify-between items-start mb-2"><h4 class="text-green-100 font-mono">' + statusIcon + ' ' + pr.title + '</h4><span class="text-green-400 text-sm font-mono">#' + pr.pr_number + '</span></div><a class="text-green-300 text-sm font-mono mb-2" href="https://github.com/'+pr.repository.owner.username + "/" + pr.repository.name+'">' + pr.repository.owner.username + "/" + pr.repository.name + '</a><p class="text-green-400 text-sm font-mono mb-2">Created: ' + createdDate + '</p><a href="' + (pr.link||"") + '" target="_blank" class="text-blue-400 hover:text-blue-300 text-sm font-mono">View on GitHub →</a></div>';
-        });
-        html += '</div>';
-        modalContent.innerHTML = html;
+      // Use template-based PR modal rendering
+      const modalElement = document.querySelector('[data-pr-modal]') as HTMLElement;
+      const titleElement = document.getElementById('modal-title') as HTMLElement;
+      const contentElement = document.querySelector('[data-modal-content]') as HTMLElement;
+      
+      if (modalElement && titleElement && contentElement && window.populatePRModal) {
+        window.populatePRModal(modalElement, titleElement, contentElement, username, data.prs);
       }
-      (prModalElem).classList.remove('hidden');
     } catch (error) {
       console.error('Error loading user PRs:', error);
     }
   }
 
-  (document.getElementById('close-modal') as HTMLElement).addEventListener('click', () => {
-    prModalElem.classList.add('hidden');
-  });
-
-  prModalElem.addEventListener('click', (e) => {
-    if ((e.target as HTMLElement).id === 'pr-modal') {
-      prModalElem.classList.add('hidden');
-    }
-  });
+  // Setup PR modal handlers using template component
+  const modalElement = document.querySelector('[data-pr-modal]') as HTMLElement;
+  if (modalElement && window.setupPRModalHandlers) {
+    window.setupPRModalHandlers(modalElement);
+  }
 
   // Manual refresh all PRs function
   async function refreshAllPRs() {
@@ -309,10 +226,13 @@ document.getElementById('searchUser')?.addEventListener('input', () => {
     refreshIcon.classList.add('animate-spin');
     refreshText.textContent = 'Refreshing...';
     
-    // Show status message
-    refreshStatus.className = 'mb-6 border border-blue-600 bg-blue-900 rounded-lg p-4';
-    refreshStatus.textContent = '🔄 Fetching latest PR data for all users... This may take a minute.';
-    refreshStatus.classList.remove('hidden');
+    // Show status message using template component
+    if (window.showStatusMessage) {
+      window.showStatusMessage(refreshStatus, {
+        type: 'info',
+        message: 'Fetching latest PR data for all users... This may take a minute.'
+      });
+    }
     
     try {
       const adminPassword = localStorage.getItem('adminPassword') || '';
@@ -329,9 +249,15 @@ document.getElementById('searchUser')?.addEventListener('input', () => {
       
       const data = await response.json();
       
-      // Show success message
-      refreshStatus.className = 'mb-6 border border-green-600 bg-green-900 rounded-lg p-4';
-      refreshStatus.innerHTML = '<p class="text-green-100 font-mono">✅ Refresh completed successfully!</p><p class="text-green-300 font-mono text-sm mt-2">Refreshed: ' + data.usersRefreshed + ' users | Errors: ' + data.errors + '</p>';
+      // Show success message using template component
+      if (window.showStatusMessage) {
+        window.showStatusMessage(refreshStatus, {
+          type: 'success',
+          title: 'Refresh completed successfully!',
+          message: 'All user PR data has been updated.',
+          details: `Refreshed: ${data.usersRefreshed} users | Errors: ${data.errors}`
+        });
+      }
       
       // Reload dashboard data
       setTimeout(() => {
@@ -340,13 +266,19 @@ document.getElementById('searchUser')?.addEventListener('input', () => {
       
       // Hide status after 5 seconds
       setTimeout(() => {
-        refreshStatus.classList.add('hidden');
+        if (window.hideStatusMessage) {
+          window.hideStatusMessage(refreshStatus);
+        }
       }, 5000);
       
     } catch (error) {
       console.error('Error refreshing PRs:', error);
-      refreshStatus.className = 'mb-6 border border-red-600 bg-red-900 rounded-lg p-4';
-      refreshStatus.innerHTML = '<p class="text-red-100 font-mono">❌ Error refreshing PRs. Please try again.</p>';
+      if (window.showStatusMessage) {
+        window.showStatusMessage(refreshStatus, {
+          type: 'error',
+          message: 'Error refreshing PRs. Please try again.'
+        });
+      }
     } finally {
       // Re-enable button
       refreshBtn.disabled = false;

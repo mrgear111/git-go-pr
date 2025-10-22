@@ -1,0 +1,84 @@
+---
+interface Props {
+  id?: string;
+  class?: string;
+}
+
+const { id = 'status-message', class: className = 'mb-6 border rounded-lg p-4' } = Astro.props;
+---
+
+<div id={id} class={`${className} hidden`} data-status-message>
+  <!-- Status messages will be populated by client-side script -->
+</div>
+
+<script>
+  type MessageType = 'info' | 'success' | 'error' | 'warning';
+
+  interface StatusMessage {
+    type: MessageType;
+    title?: string;
+    message: string;
+    details?: string;
+  }
+
+  function showStatusMessage(
+    container: HTMLElement, 
+    { type, title, message, details }: StatusMessage
+  ) {
+    if (!container || !container.hasAttribute('data-status-message')) return;
+
+    const baseClasses = 'mb-6 border rounded-lg p-4';
+    const typeClasses = {
+      info: 'border-blue-600 bg-blue-900',
+      success: 'border-green-600 bg-green-900', 
+      error: 'border-red-600 bg-red-900',
+      warning: 'border-yellow-600 bg-yellow-900'
+    };
+
+    const textClasses = {
+      info: 'text-blue-100',
+      success: 'text-green-100',
+      error: 'text-red-100', 
+      warning: 'text-yellow-100'
+    };
+
+    const detailClasses = {
+      info: 'text-blue-300',
+      success: 'text-green-300',
+      error: 'text-red-300',
+      warning: 'text-yellow-300'
+    };
+
+    const icons = {
+      info: '🔄',
+      success: '✅',
+      error: '❌',
+      warning: '⚠️'
+    };
+
+    container.className = `${baseClasses} ${typeClasses[type]}`;
+    container.innerHTML = `
+      ${title ? `<p class="${textClasses[type]} font-mono">${icons[type]} ${title}</p>` : ''}
+      <p class="${textClasses[type]} font-mono">${icons[type]} ${message}</p>
+      ${details ? `<p class="${detailClasses[type]} font-mono text-sm mt-2">${details}</p>` : ''}
+    `;
+    container.classList.remove('hidden');
+  }
+
+  function hideStatusMessage(container: HTMLElement) {
+    if (container && container.hasAttribute('data-status-message')) {
+      container.classList.add('hidden');
+    }
+  }
+
+  // Make functions globally available
+  window.showStatusMessage = showStatusMessage;
+  window.hideStatusMessage = hideStatusMessage;
+
+  declare global {
+    interface Window {
+      showStatusMessage: typeof showStatusMessage;
+      hideStatusMessage: typeof hideStatusMessage;
+    }
+  }
+</script>

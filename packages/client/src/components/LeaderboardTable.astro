@@ -1,0 +1,116 @@
+---
+export interface LeaderboardEntry {
+  username: string;
+  display_name?: string;
+  total_prs: number;
+  merged_prs: number;
+}
+
+interface Props {
+  leaderboard: LeaderboardEntry[];
+}
+
+const { leaderboard } = Astro.props;
+
+function getBadge(index: number): string {
+  if (index === 0) return '👑';
+  if (index === 1) return '🥈';
+  if (index === 2) return '🥉';
+  return '';
+}
+
+function getRowClass(index: number): string {
+  return index < 3 ? 'bg-yellow-50' : '';
+}
+---
+
+<div class="bg-white rounded-lg shadow-lg overflow-hidden">
+  <div class="px-6 py-4 bg-green-600 text-white">
+    <h2 class="text-xl font-semibold font-mono">Full Rankings</h2>
+  </div>
+  
+  <div class="overflow-x-auto">
+    <table class="min-w-full">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono">
+            Rank
+          </th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono">
+            Contributor
+          </th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono">
+            GitHub
+          </th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono">
+            Total PRs
+          </th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono">
+            Merged PRs
+          </th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono">
+            Badge
+          </th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        {leaderboard.length === 0 ? (
+          <tr>
+            <td colspan="6" class="px-6 py-16 text-center">
+              <h3 class="text-xl font-bold text-gray-900 mb-4 font-mono">
+                Leaderboard Coming Soon
+              </h3>
+              <p class="text-gray-600 mb-8 max-w-md mx-auto font-mono">
+                Once contributors start participating, you will see detailed rankings here.
+              </p>
+              <a 
+                href="/login" 
+                class="inline-block bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold font-mono"
+              >
+                Sign in to Participate
+              </a>
+            </td>
+          </tr>
+        ) : (
+          leaderboard.map((entry, index) => (
+            <tr class={getRowClass(index)}>
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 font-mono">
+                #{index + 1}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="flex items-center">
+                  <img 
+                    src={`https://avatars.githubusercontent.com/${entry.username}`}
+                    alt={entry.username}
+                    class="w-8 h-8 rounded-full mr-3"
+                  />
+                  <span class="text-sm font-medium text-gray-900 font-mono">
+                    {entry.display_name || entry.username}
+                  </span>
+                </div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+                <a 
+                  href={`https://github.com/${entry.username}`}
+                  target="_blank"
+                  class="text-blue-600 hover:text-blue-800 underline"
+                >
+                  @{entry.username}
+                </a>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono">
+                {entry.total_prs}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600 font-mono">
+                {entry.merged_prs}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <span class="text-2xl">{getBadge(index)}</span>
+              </td>
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
+  </div>
+</div>

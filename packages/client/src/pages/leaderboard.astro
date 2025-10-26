@@ -38,7 +38,49 @@ import Footer from '../components/Footer.astro'
 
       <!-- Dynamic content will be populated here -->
       <div id="podium" class="mb-16 text-center hidden"></div>
-      <div id="leaderboard-table" class="hidden"></div>
+
+      <div id="leaderboard-table" class="bg-white rounded-lg shadow-lg overflow-hidden hidden">
+        <div class="px-6 py-4 bg-green-600 text-white">
+          <h2 class="text-xl font-semibold font-mono">Full Rankings</h2>
+        </div>
+        
+        <div class="overflow-x-auto">
+          <table class="min-w-full">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono">Rank</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono">Contributor</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono">GitHub</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono">Total PRs</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono">Merged PRs</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-mono">Badge</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-body" class="bg-white divide-y divide-gray-200">
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination controls -->
+        <div id="pagination" class="px-6 py-4 flex items-center justify-between border-t hidden">
+          <div class="flex items-center space-x-2">
+            <label class="text-sm text-gray-600 font-mono">Show</label>
+            <select id="per-page-select" class="border rounded px-2 py-1 text-sm font-mono">
+              <option value="10">10</option>
+              <option value="25" selected>25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+
+          <div class="flex items-center space-x-3">
+            <button id="prev-page" class="px-3 py-1 bg-gray-100 rounded text-sm font-mono disabled:opacity-50" disabled>Previous</button>
+            <span id="page-info" class="text-sm text-gray-700 font-mono">Page 1</span>
+            <button id="next-page" class="px-3 py-1 bg-gray-100 rounded text-sm font-mono disabled:opacity-50" disabled>Next</button>
+          </div>
+        </div>
+      </div>
+
     </div>
   </section>
 
@@ -46,8 +88,6 @@ import Footer from '../components/Footer.astro'
 </Layout>
 
 <script>
-  import { LeaderboardRenderer } from '../utils/LeaderboardRenderer.ts';
-  
   const API_BASE =
     import.meta.env.MODE == 'development' ? 'http://localhost:4000' : ''
 
@@ -59,57 +99,155 @@ import Footer from '../components/Footer.astro'
     merged_prs: number
   }
 
+  // Pagination state
+  let currentPage = 1;
+  let perPage = 25;
+  let totalEntries = 0;
+
+  async function fetchLeaderboardPage(page: number, per_page: number) {
+    const url = `${API_BASE}/api/leaderboard?page=${page}&per_page=${per_page}`;
+    const res = await fetch(url);
+    
+    if (!res.ok) {
+      throw new Error('API Error: ' + res.status + ' ' + res.statusText);
+    }
+
+    // Get total count from header if available
+    const totalHeader = res.headers.get('X-Total-Count');
+    if (totalHeader) {
+      totalEntries = parseInt(totalHeader, 10);
+    }
+
+    const data = await res.json();
+    return Array.isArray(data) ? data : data.data;
+  }
+
   async function loadLeaderboard() {
+    const loading = document.getElementById('loading');
+    if (loading) loading.classList.remove('hidden');
+
     try {
-      const res = await fetch(API_BASE + '/api/leaderboard')
+      // First fetch top 3 for podium
+      const podiumEntries = await fetchLeaderboardPage(1, 3);
+      
+      // Then fetch current page for table
+      const pageEntries = await fetchLeaderboardPage(currentPage, perPage);
 
-      if (!res.ok) {
-        throw new Error('API Error: ' + res.status + ' ' + res.statusText)
+      if (loading) loading.classList.add('hidden');
+
+      if (podiumEntries.length >= 3) {
+        renderPodium(podiumEntries);
       }
 
-      const leaderboard: LeaderboardEntry[] = await res.json()
-
-      const loading = document.getElementById('loading')
-      if (loading) loading.classList.add('hidden')
-
-      if (leaderboard.length >= 3) {
-        renderPodium(leaderboard)
-      }
-
-      renderLeaderboardTable(leaderboard)
+      renderLeaderboardTable(pageEntries);
+      updatePaginationControls();
     } catch (err) {
-      console.error('Leaderboard fetch error:', err)
-      const loading = document.getElementById('loading')
-      if (loading) loading.classList.add('hidden')
-      const errorDiv = document.getElementById('error')
-      const errorMsg = document.getElementById('error-message')
+      console.error('Leaderboard fetch error:', err);
+      if (loading) loading.classList.add('hidden');
+      
+      const errorDiv = document.getElementById('error');
+      const errorMsg = document.getElementById('error-message');
       if (errorDiv && errorMsg) {
-        errorDiv.classList.remove('hidden')
-        errorMsg.textContent =
-          err instanceof Error ? err.message : 'Failed to load leaderboard'
+        errorDiv.classList.remove('hidden');
+        errorMsg.textContent = err instanceof Error ? err.message : 'Failed to load leaderboard';
       }
     }
   }
 
-  function renderPodium(leaderboard: LeaderboardEntry[]) {
-    const podiumContainer = document.getElementById('podium') as HTMLElement;
-    if (!podiumContainer) return;
+  function renderLeaderboardTable(entries: LeaderboardEntry[]) {
+    const tableBody = document.getElementById('leaderboard-body');
+    const table = document.getElementById('leaderboard-table');
+    
+    if (!tableBody || !table) return;
 
-    const podiumHTML = LeaderboardRenderer.renderPodium(leaderboard);
-    podiumContainer.innerHTML = podiumHTML;
-    podiumContainer.classList.remove('hidden');
+    if (entries.length === 0) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="6" class="px-6 py-16 text-center">
+            <h3 class="text-xl font-bold text-gray-900 mb-4 font-mono">No entries found</h3>
+          </td>
+        </tr>
+      `;
+    } else {
+      const startRank = (currentPage - 1) * perPage;
+      
+      const rows = entries.map((entry, index) => {
+        const rank = startRank + index + 1;
+        const badge = rank === 1 ? '👑' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '';
+        const rowClass = rank <= 3 ? 'bg-yellow-50' : '';
+
+        return `
+          <tr class="${rowClass}">
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 font-mono">#${rank}</td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="flex items-center">
+                <img src="https://avatars.githubusercontent.com/${entry.username}" alt="${entry.username}" class="w-8 h-8 rounded-full mr-3">
+                <span class="text-sm font-medium text-gray-900 font-mono">${entry.display_name || entry.username}</span>
+              </div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+              <a href="https://github.com/${entry.username}" target="_blank" class="text-blue-600 hover:text-blue-800 underline">@${entry.username}</a>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono">${entry.total_prs}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600 font-mono">${entry.merged_prs}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><span class="text-2xl">${badge}</span></td>
+          </tr>
+        `;
+      }).join('');
+
+      tableBody.innerHTML = rows;
+    }
+
+    table.classList.remove('hidden');
+    document.getElementById('pagination')?.classList.remove('hidden');
   }
 
-  function renderLeaderboardTable(leaderboard: LeaderboardEntry[]) {
-    const tableContainer = document.getElementById('leaderboard-table') as HTMLElement;
-    if (!tableContainer) return;
-
-    const tableHTML = LeaderboardRenderer.renderTable(leaderboard);
-    tableContainer.innerHTML = tableHTML;
-    tableContainer.classList.remove('hidden');
+  function updatePaginationControls() {
+    const prevBtn = document.getElementById('prev-page') as HTMLButtonElement;
+    const nextBtn = document.getElementById('next-page') as HTMLButtonElement;
+    const pageInfo = document.getElementById('page-info');
+    
+    if (prevBtn && nextBtn && pageInfo) {
+      prevBtn.disabled = currentPage <= 1;
+      const lastPage = Math.ceil(totalEntries / perPage);
+      nextBtn.disabled = currentPage >= lastPage;
+      pageInfo.textContent = `Page ${currentPage}`;
+    }
   }
 
+  // Event Listeners
+  document.addEventListener('DOMContentLoaded', () => {
+    const perPageSelect = document.getElementById('per-page-select') as HTMLSelectElement;
+    const prevBtn = document.getElementById('prev-page');
+    const nextBtn = document.getElementById('next-page');
 
+    if (perPageSelect) {
+      perPageSelect.addEventListener('change', () => {
+        perPage = parseInt(perPageSelect.value);
+        currentPage = 1;
+        loadLeaderboard();
+      });
+    }
 
-  loadLeaderboard()
+    if (prevBtn) {
+      prevBtn.addEventListener('click', () => {
+        if (currentPage > 1) {
+          currentPage--;
+          loadLeaderboard();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      });
+    }
+
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        currentPage++;
+        loadLeaderboard();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
+
+    // Initial load
+    loadLeaderboard();
+  });
 </script>

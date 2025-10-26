@@ -88,125 +88,102 @@ export async function getAllUserPRs(req, res) {
   }
 }
 
+// Global state for refresh job
+let refreshJob = {
+  isRunning: false,
+  totalUsers: 0,
+  processed: 0,
+  successful: 0,
+  errors: 0,
+  currentUser: null,
+  startTime: null,
+  recentLogs: []
+}
+
+export async function getRefreshStatus(req, res) {
+  res.json(refreshJob)
+}
+
 export async function refreshAllUserPRs(req, res) {
-  try {
-    // Set up Server-Sent Events (SSE) headers
-    res.setHeader('Content-Type', 'text/event-stream')
-    res.setHeader('Cache-Control', 'no-cache')
-    res.setHeader('Connection', 'keep-alive')
-    res.setHeader('X-Accel-Buffering', 'no') // Disable nginx buffering
-    res.flushHeaders()
-
-    // Track if connection is closed
-    let connectionClosed = false
-    req.on('close', () => {
-      connectionClosed = true
-      console.log('Client closed SSE connection')
+  // Check if already running
+  if (refreshJob.isRunning) {
+    return res.json({ 
+      success: false, 
+      message: 'Refresh already in progress',
+      status: refreshJob 
     })
+  }
 
-    // Get batch parameters from query (for resuming)
-    const batchSize = parseInt(req.query.batchSize) || 50 // Process 50 users at a time
-    const skip = parseInt(req.query.skip) || 0
+  // Start the job immediately and return
+  res.json({ 
+    success: true, 
+    message: 'Refresh started in background' 
+  })
 
-    const users = await models.User.find({}, 'username').skip(skip).limit(batchSize).lean()
-    const totalUsers = await models.User.countDocuments()
+  // Run in background
+  runRefreshJob().catch(err => {
+    console.error('Background refresh job error:', err)
+    refreshJob.isRunning = false
+  })
+}
 
-    if (users.length === 0) {
-      res.write(`data: ${JSON.stringify({ type: 'complete', message: 'No more users to refresh', usersRefreshed: 0, hasMore: false })}\n\n`)
-      res.end()
-      return
-    }
+async function runRefreshJob() {
+  refreshJob = {
+    isRunning: true,
+    totalUsers: 0,
+    processed: 0,
+    successful: 0,
+    errors: 0,
+    currentUser: null,
+    startTime: new Date(),
+    recentLogs: []
+  }
 
-    let successCount = 0
-    let errorCount = 0
+  try {
+    const users = await models.User.find({}, 'username').lean()
+    refreshJob.totalUsers = users.length
 
-    // Send initial message with batch info
-    res.write(`data: ${JSON.stringify({ 
-      type: 'start', 
-      total: users.length,
-      totalUsers: totalUsers,
-      skip: skip,
-      batchSize: batchSize
-    })}\n\n`)
+    console.log(`Starting refresh for ${users.length} users...`)
 
     for (let i = 0; i < users.length; i++) {
-      // Check if connection is still open
-      if (connectionClosed) {
-        console.log('Connection closed, stopping refresh')
-        break
-      }
-
       const user = users[i]
+      refreshJob.currentUser = user.username
+      refreshJob.processed = i + 1
+
       try {
-        // Send progress update
-        res.write(`data: ${JSON.stringify({ 
-          type: 'progress', 
-          username: user.username, 
-          current: i + 1, 
-          total: users.length,
-          status: 'fetching'
-        })}\n\n`)
-
         await refreshUserPRs(user.username)
-        successCount++
-
-        // Send success update
-        res.write(`data: ${JSON.stringify({ 
-          type: 'progress', 
-          username: user.username, 
-          current: i + 1, 
-          total: users.length,
-          status: 'success'
-        })}\n\n`)
-
-        // Send heartbeat comment to keep connection alive
-        res.write(': heartbeat\n\n')
-
-        await new Promise((resolve) => setTimeout(resolve, 500))
+        refreshJob.successful++
+        refreshJob.recentLogs.unshift({
+          username: user.username,
+          status: 'success',
+          timestamp: new Date()
+        })
       } catch (error) {
         console.error(`Error refreshing ${user.username}:`, error.message)
-        errorCount++
-        
-        // Send error update
-        res.write(`data: ${JSON.stringify({ 
-          type: 'progress', 
-          username: user.username, 
-          current: i + 1, 
-          total: users.length,
+        refreshJob.errors++
+        refreshJob.recentLogs.unshift({
+          username: user.username,
           status: 'error',
-          error: error.message
-        })}\n\n`)
+          error: error.message,
+          timestamp: new Date()
+        })
       }
+
+      // Keep only last 20 logs
+      if (refreshJob.recentLogs.length > 20) {
+        refreshJob.recentLogs = refreshJob.recentLogs.slice(0, 20)
+      }
+
+      // Small delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 300))
     }
 
-    // Send completion message
-    if (!connectionClosed) {
-      const nextSkip = skip + users.length
-      const hasMore = nextSkip < totalUsers
-      
-      res.write(`data: ${JSON.stringify({
-        type: 'complete',
-        message: hasMore ? 'Batch completed' : 'All users refreshed',
-        usersRefreshed: successCount,
-        errors: errorCount,
-        total: users.length,
-        totalUsers: totalUsers,
-        processed: nextSkip,
-        hasMore: hasMore,
-        nextSkip: hasMore ? nextSkip : null
-      })}\n\n`)
-    }
-    
-    res.end()
+    console.log(`Refresh complete: ${refreshJob.successful} successful, ${refreshJob.errors} errors`)
   } catch (error) {
-    console.error('Error in manual refresh:', error)
-    try {
-      res.write(`data: ${JSON.stringify({ type: 'error', error: error.message })}\n\n`)
-      res.end()
-    } catch (e) {
-      // Connection already closed
-      console.error('Could not send error to client:', e.message)
-    }
+    console.error('Fatal error in refresh job:', error)
+  } finally {
+    refreshJob.isRunning = false
+    refreshJob.currentUser = null
   }
 }
 

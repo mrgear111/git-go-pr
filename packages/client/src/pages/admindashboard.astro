@@ -231,11 +231,11 @@ import PRModal from '../components/PRModal.astro';
     window.setupPRModalHandlers(modalElement);
   }
 
-  // Track last processed position globally
-  let lastProcessedCount = 0;
+  // Polling interval for status updates
+  let pollingInterval: number | null = null;
 
-  // Manual refresh all PRs function with SSE and batch processing
-  async function refreshAllPRs(skipCount = null) {
+  // Manual refresh all PRs function with background job and polling
+  async function refreshAllPRs() {
     const refreshBtn = document.getElementById('refresh-all-btn') as HTMLButtonElement;
     const refreshIcon = document.getElementById('refresh-icon') as HTMLElement;
     const refreshText = document.getElementById('refresh-text') as HTMLElement;
@@ -246,91 +246,76 @@ import PRModal from '../components/PRModal.astro';
     const currentUserText = document.getElementById('current-user-text') as HTMLElement;
     const progressLog = document.getElementById('progress-log') as HTMLElement;
 
-    // Use last processed count if not explicitly provided
-    if (skipCount === null) {
-      skipCount = lastProcessedCount;
-    }
-
     // Disable button and show loading state
     refreshBtn.disabled = true;
     refreshBtn.classList.add('opacity-50', 'cursor-not-allowed');
     refreshIcon.classList.add('animate-spin');
-    refreshText.textContent = 'Refreshing...';
+    refreshText.textContent = 'Starting...';
     
-    // Show progress container (but don't clear log if resuming)
+    // Show progress container and clear log
     progressContainer.classList.remove('hidden');
-    if (skipCount === 0) {
-      progressLog.innerHTML = '';
-      lastProcessedCount = 0;
-    }
+    progressLog.innerHTML = '';
     
     try {
       const adminPassword = localStorage.getItem('adminPassword') || '';
-      const batchSize = 50; // Process 50 users at a time
-      const eventSource = new EventSource(
-        API_BASE + '/api/admin/refresh-all?adminPassword=' + encodeURIComponent(adminPassword) + 
-        '&skip=' + skipCount + '&batchSize=' + batchSize
-      );
       
-      let totalUsersGlobal = 0;
-      let processedGlobal = skipCount;
+      // Start the background job
+      const startResponse = await fetch(API_BASE + '/api/admin/refresh-all?adminPassword=' + encodeURIComponent(adminPassword), {
+        method: 'POST'
+      });
       
-      eventSource.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        
-        if (data.type === 'start') {
-          totalUsersGlobal = data.totalUsers;
-        } else if (data.type === 'progress') {
-          processedGlobal = skipCount + data.current;
-          lastProcessedCount = processedGlobal; // Track progress
-          const percentage = (processedGlobal / totalUsersGlobal) * 100;
-          progressBar.style.width = `${percentage}%`;
-          progressCounter.textContent = `${processedGlobal} / ${totalUsersGlobal}`;
+      if (!startResponse.ok) {
+        throw new Error('Failed to start refresh');
+      }
+      
+      const startData = await startResponse.json();
+      if (!startData.success) {
+        throw new Error(startData.message || 'Failed to start refresh');
+      }
+      
+      refreshText.textContent = 'Refreshing...';
+      let lastProcessed = 0;
+      const seenUsers = new Set();
+      
+      // Poll for status updates
+      pollingInterval = window.setInterval(async () => {
+        try {
+          const statusResponse = await fetch(API_BASE + '/api/admin/refresh-status?adminPassword=' + encodeURIComponent(adminPassword));
+          const status = await statusResponse.json();
           
-          if (data.status === 'fetching') {
-            currentUserText.textContent = `Fetching PRs for @${data.username}...`;
-            const logEntry = document.createElement('div');
-            logEntry.className = 'text-sm text-yellow-400 font-mono';
-            logEntry.innerHTML = `<span class="animate-pulse">⏳</span> Fetching @${data.username}...`;
-            progressLog.appendChild(logEntry);
-          } else if (data.status === 'success') {
-            const lastEntry = progressLog.lastElementChild;
-            if (lastEntry) {
-              lastEntry.className = 'text-sm text-green-400 font-mono';
-              lastEntry.innerHTML = `<span>✓</span> @${data.username} - Done!`;
-            }
-          } else if (data.status === 'error') {
-            const lastEntry = progressLog.lastElementChild;
-            if (lastEntry) {
-              lastEntry.className = 'text-sm text-red-400 font-mono';
-              lastEntry.innerHTML = `<span>✗</span> @${data.username} - Error: ${data.error || 'Unknown error'}`;
-            }
+          // Update UI
+          const percentage = status.totalUsers > 0 ? (status.processed / status.totalUsers) * 100 : 0;
+          progressBar.style.width = `${percentage}%`;
+          progressCounter.textContent = `${status.processed} / ${status.totalUsers}`;
+          
+          if (status.currentUser) {
+            currentUserText.textContent = `Fetching PRs for @${status.currentUser}...`;
           }
           
-          // Scroll to bottom of log
-          progressLog.scrollTop = progressLog.scrollHeight;
-        } else if (data.type === 'complete') {
-          eventSource.close();
-          
-          // Check if there are more users to process
-          if (data.hasMore && data.nextSkip) {
-            currentUserText.textContent = `Batch complete! Continuing with next batch...`;
-            
-            // Add separator in log
-            const separator = document.createElement('div');
-            separator.className = 'text-sm text-blue-400 font-mono border-t border-blue-600 pt-2 mt-2';
-            separator.textContent = `--- Continuing with users ${data.nextSkip + 1}+ ---`;
-            progressLog.appendChild(separator);
+          // Add new logs
+          if (status.recentLogs && status.recentLogs.length > 0) {
+            for (const log of status.recentLogs.slice().reverse()) {
+              const key = `${log.username}-${log.status}`;
+              if (!seenUsers.has(key)) {
+                seenUsers.add(key);
+                const logEntry = document.createElement('div');
+                if (log.status === 'success') {
+                  logEntry.className = 'text-sm text-green-400 font-mono';
+                  logEntry.innerHTML = `<span>✓</span> @${log.username} - Done!`;
+                } else {
+                  logEntry.className = 'text-sm text-red-400 font-mono';
+                  logEntry.innerHTML = `<span>✗</span> @${log.username} - Error: ${log.error || 'Unknown error'}`;
+                }
+                progressLog.appendChild(logEntry);
+              }
+            }
             progressLog.scrollTop = progressLog.scrollHeight;
-            
-            // Auto-continue with next batch after 1 second
-            setTimeout(() => {
-              refreshAllPRs(data.nextSkip);
-            }, 1000);
-          } else {
-            // All done!
+          }
+          
+          // Check if complete
+          if (!status.isRunning && status.processed > 0) {
+            clearInterval(pollingInterval!);
             currentUserText.textContent = 'All users completed!';
-            lastProcessedCount = 0; // Reset for next full refresh
             
             // Show success message
             if (window.showStatusMessage) {
@@ -338,7 +323,7 @@ import PRModal from '../components/PRModal.astro';
                 type: 'success',
                 title: 'Refresh completed successfully!',
                 message: 'All user PR data has been updated.',
-                details: `Total processed: ${data.processed} users`
+                details: `Successful: ${status.successful} | Errors: ${status.errors}`
               });
             }
             
@@ -348,67 +333,27 @@ import PRModal from '../components/PRModal.astro';
               progressContainer.classList.add('hidden');
             }, 2000);
             
-            // Hide status after 5 seconds
-            setTimeout(() => {
-              if (window.hideStatusMessage) {
-                window.hideStatusMessage(refreshStatus);
-              }
-            }, 5000);
-            
             // Re-enable button
             refreshBtn.disabled = false;
             refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
             refreshIcon.classList.remove('animate-spin');
             refreshText.textContent = 'Refresh All PRs';
           }
-        } else if (data.type === 'error') {
-          eventSource.close();
-          throw new Error(data.error || 'Unknown error');
+        } catch (error) {
+          console.error('Polling error:', error);
         }
-      };
-      
-      eventSource.onerror = (error) => {
-        console.error('SSE Error:', error);
-        eventSource.close();
-        
-        // Check if we received any progress - if so, it's a connection issue mid-stream
-        const progressCounterText = progressCounter.textContent;
-        const hasProgress = progressCounterText && progressCounterText !== '0 / 0';
-        
-        if (hasProgress) {
-          if (window.showStatusMessage) {
-            window.showStatusMessage(refreshStatus, {
-              type: 'error',
-              message: 'Connection interrupted. Progress was saved. Please click Refresh again to continue.'
-            });
-          }
-        } else {
-          if (window.showStatusMessage) {
-            window.showStatusMessage(refreshStatus, {
-              type: 'error',
-              message: 'Error starting refresh. Please try again.'
-            });
-          }
-        }
-        
-        // Re-enable button
-        refreshBtn.disabled = false;
-        refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-        refreshIcon.classList.remove('animate-spin');
-        refreshText.textContent = 'Refresh All PRs';
-        
-        // Don't hide progress container if we made progress
-        if (!hasProgress) {
-          progressContainer.classList.add('hidden');
-        }
-      };
+      }, 1000); // Poll every second
       
     } catch (error) {
-      console.error('Error refreshing PRs:', error);
+      console.error('Error starting refresh:', error);
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+      
       if (window.showStatusMessage) {
         window.showStatusMessage(refreshStatus, {
           type: 'error',
-          message: 'Error refreshing PRs. Please try again.'
+          message: 'Error starting refresh. Please try again.'
         });
       }
       

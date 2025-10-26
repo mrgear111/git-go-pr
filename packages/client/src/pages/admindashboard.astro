@@ -231,8 +231,11 @@ import PRModal from '../components/PRModal.astro';
     window.setupPRModalHandlers(modalElement);
   }
 
+  // Track last processed position globally
+  let lastProcessedCount = 0;
+
   // Manual refresh all PRs function with SSE and batch processing
-  async function refreshAllPRs(skipCount = 0) {
+  async function refreshAllPRs(skipCount = null) {
     const refreshBtn = document.getElementById('refresh-all-btn') as HTMLButtonElement;
     const refreshIcon = document.getElementById('refresh-icon') as HTMLElement;
     const refreshText = document.getElementById('refresh-text') as HTMLElement;
@@ -242,6 +245,11 @@ import PRModal from '../components/PRModal.astro';
     const progressCounter = document.getElementById('progress-counter') as HTMLElement;
     const currentUserText = document.getElementById('current-user-text') as HTMLElement;
     const progressLog = document.getElementById('progress-log') as HTMLElement;
+
+    // Use last processed count if not explicitly provided
+    if (skipCount === null) {
+      skipCount = lastProcessedCount;
+    }
 
     // Disable button and show loading state
     refreshBtn.disabled = true;
@@ -253,6 +261,7 @@ import PRModal from '../components/PRModal.astro';
     progressContainer.classList.remove('hidden');
     if (skipCount === 0) {
       progressLog.innerHTML = '';
+      lastProcessedCount = 0;
     }
     
     try {
@@ -273,6 +282,7 @@ import PRModal from '../components/PRModal.astro';
           totalUsersGlobal = data.totalUsers;
         } else if (data.type === 'progress') {
           processedGlobal = skipCount + data.current;
+          lastProcessedCount = processedGlobal; // Track progress
           const percentage = (processedGlobal / totalUsersGlobal) * 100;
           progressBar.style.width = `${percentage}%`;
           progressCounter.textContent = `${processedGlobal} / ${totalUsersGlobal}`;
@@ -320,6 +330,7 @@ import PRModal from '../components/PRModal.astro';
           } else {
             // All done!
             currentUserText.textContent = 'All users completed!';
+            lastProcessedCount = 0; // Reset for next full refresh
             
             // Show success message
             if (window.showStatusMessage) {

@@ -233,6 +233,46 @@ import PRModal from '../components/PRModal.astro';
 
   // Polling interval for status updates
   let pollingInterval: number | null = null;
+  let cooldownCheckInterval: number | null = null;
+
+  // Check and update cooldown status
+  async function checkCooldownStatus() {
+    try {
+      const adminPassword = localStorage.getItem('adminPassword') || '';
+      const statusResponse = await fetch(API_BASE + '/api/admin/refresh-status?adminPassword=' + encodeURIComponent(adminPassword));
+      const status = await statusResponse.json();
+      
+      const refreshBtn = document.getElementById('refresh-all-btn') as HTMLButtonElement;
+      const refreshText = document.getElementById('refresh-text') as HTMLElement;
+      
+      if (status.lastCompletedTime) {
+        const lastCompleted = new Date(status.lastCompletedTime).getTime();
+        const cooldownMs = 10 * 60 * 60 * 1000; // 10 hours
+        const remainingMs = (lastCompleted + cooldownMs) - Date.now();
+        
+        if (remainingMs > 0) {
+          const hours = Math.floor(remainingMs / (60 * 60 * 1000));
+          const minutes = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
+          
+          refreshBtn.disabled = true;
+          refreshBtn.classList.add('opacity-50', 'cursor-not-allowed');
+          refreshText.textContent = `Cooldown: ${hours}h ${minutes}m`;
+          return true; // On cooldown
+        }
+      }
+      
+      // Not on cooldown
+      if (!status.isRunning) {
+        refreshBtn.disabled = false;
+        refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        refreshText.textContent = 'Refresh All PRs';
+      }
+      return false; // Not on cooldown
+    } catch (error) {
+      console.error('Error checking cooldown:', error);
+      return false;
+    }
+  }
 
   // Manual refresh all PRs function with background job and polling
   async function refreshAllPRs() {
@@ -270,7 +310,20 @@ import PRModal from '../components/PRModal.astro';
       
       const startData = await startResponse.json();
       if (!startData.success) {
-        throw new Error(startData.message || 'Failed to start refresh');
+        // Show cooldown message
+        if (window.showStatusMessage) {
+          window.showStatusMessage(refreshStatus, {
+            type: 'error',
+            message: startData.message || 'Failed to start refresh'
+          });
+        }
+        
+        // Re-enable button with cooldown text
+        refreshBtn.disabled = true;
+        refreshBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        refreshIcon.classList.remove('animate-spin');
+        checkCooldownStatus();
+        return;
       }
       
       refreshText.textContent = 'Refreshing...';
@@ -338,6 +391,9 @@ import PRModal from '../components/PRModal.astro';
             refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
             refreshIcon.classList.remove('animate-spin');
             refreshText.textContent = 'Refresh All PRs';
+            
+            // Start cooldown checker
+            cooldownCheckInterval = window.setInterval(checkCooldownStatus, 60000); // Check every minute
           }
         } catch (error) {
           console.error('Polling error:', error);
@@ -368,6 +424,10 @@ import PRModal from '../components/PRModal.astro';
 
   // Add event listener to refresh button
   (document.getElementById('refresh-all-btn') as HTMLButtonElement).addEventListener('click', refreshAllPRs);
+
+  // Check cooldown status on load and every minute
+  checkCooldownStatus();
+  cooldownCheckInterval = window.setInterval(checkCooldownStatus, 60000);
 
   loadDashboardData();
 

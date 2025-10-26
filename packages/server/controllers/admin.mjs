@@ -116,8 +116,12 @@ let refreshJob = {
   errors: 0,
   currentUser: null,
   startTime: null,
+  lastCompletedTime: null,
   recentLogs: []
 }
+
+const COOLDOWN_HOURS = 10
+const COOLDOWN_MS = COOLDOWN_HOURS * 60 * 60 * 1000
 
 export async function getRefreshStatus(req, res) {
   res.json(refreshJob)
@@ -131,6 +135,24 @@ export async function refreshAllUserPRs(req, res) {
       message: 'Refresh already in progress',
       status: refreshJob 
     })
+  }
+
+  // Check cooldown period
+  if (refreshJob.lastCompletedTime) {
+    const timeSinceLastRefresh = Date.now() - new Date(refreshJob.lastCompletedTime).getTime()
+    const remainingCooldown = COOLDOWN_MS - timeSinceLastRefresh
+    
+    if (remainingCooldown > 0) {
+      const hoursRemaining = Math.ceil(remainingCooldown / (60 * 60 * 1000))
+      const minutesRemaining = Math.ceil((remainingCooldown % (60 * 60 * 1000)) / (60 * 1000))
+      
+      return res.json({ 
+        success: false, 
+        message: `Refresh on cooldown. Please wait ${hoursRemaining}h ${minutesRemaining}m before refreshing again.`,
+        cooldownRemaining: remainingCooldown,
+        nextRefreshTime: new Date(new Date(refreshJob.lastCompletedTime).getTime() + COOLDOWN_MS)
+      })
+    }
   }
 
   // Start the job immediately and return
@@ -148,6 +170,7 @@ export async function refreshAllUserPRs(req, res) {
 
 async function runRefreshJob() {
   refreshJob = {
+    ...refreshJob, // Preserve lastCompletedTime
     isRunning: true,
     totalUsers: 0,
     processed: 0,
@@ -198,6 +221,9 @@ async function runRefreshJob() {
     }
 
     console.log(`Refresh complete: ${refreshJob.successful} successful, ${refreshJob.errors} errors`)
+    
+    // Set completion time for cooldown
+    refreshJob.lastCompletedTime = new Date()
   } catch (error) {
     console.error('Fatal error in refresh job:', error)
   } finally {

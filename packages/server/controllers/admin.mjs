@@ -74,15 +74,34 @@ export async function getAllUserPRs(req, res) {
   try {
     const { userId } = req.params
     const prs = await GitHubPR.find({ author: userId })
-      .populate({
-        path: 'repository',
-        populate: {
-          path: 'owner',
-        },
-      })
       .sort({ createdAt: -1 })
       .lean()
-    res.json({ prs })
+    
+    // Format PRs for frontend - extract repo info from link
+    const formattedPRs = prs.map(pr => {
+      // Parse GitHub PR URL: https://github.com/owner/repo/pull/123
+      const urlMatch = pr.link.match(/github\.com\/([^\/]+)\/([^\/]+)\/pull\/(\d+)/)
+      const owner = urlMatch ? urlMatch[1] : 'unknown'
+      const repoName = urlMatch ? urlMatch[2] : 'unknown'
+      const prNumber = urlMatch ? parseInt(urlMatch[3]) : 0
+      
+      return {
+        _id: pr._id,
+        pr_number: prNumber,
+        title: pr.title,
+        url: pr.link,
+        state: pr.is_open ? 'open' : 'closed',
+        createdAt: pr.createdAt,
+        repository: {
+          name: repoName,
+          owner: {
+            username: owner
+          }
+        }
+      }
+    })
+    
+    res.json({ prs: formattedPRs })
   } catch (error) {
     res.status(500).json({ error: error.message })
   }

@@ -32,6 +32,24 @@ import PRModal from '../components/PRModal.astro';
 
       <StatusMessage id="refresh-status" />
 
+      <!-- Real-time Progress Display -->
+      <div id="refresh-progress" class="hidden bg-gray-900 border border-green-600 rounded-lg p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-bold text-green-400 font-mono">Fetching PRs...</h3>
+          <span id="progress-counter" class="text-green-300 font-mono text-sm">0 / 0</span>
+        </div>
+        <div class="w-full bg-gray-800 rounded-full h-4 mb-4">
+          <div id="progress-bar" class="bg-green-500 h-4 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <div id="current-user" class="text-green-300 font-mono text-sm flex items-center gap-2">
+          <span class="animate-pulse">⏳</span>
+          <span id="current-user-text">Preparing...</span>
+        </div>
+        <div id="progress-log" class="mt-4 max-h-48 overflow-y-auto space-y-1">
+          <!-- Progress messages will be added here -->
+        </div>
+      </div>
+
       <div id="error" class="hidden bg-red-900 border border-red-600 rounded-lg p-4 mb-6">
         <p class="text-red-100 font-mono">Error loading data. Please try again.</p>
       </div>
@@ -213,12 +231,17 @@ import PRModal from '../components/PRModal.astro';
     window.setupPRModalHandlers(modalElement);
   }
 
-  // Manual refresh all PRs function
+  // Manual refresh all PRs function with SSE
   async function refreshAllPRs() {
     const refreshBtn = document.getElementById('refresh-all-btn') as HTMLButtonElement;
     const refreshIcon = document.getElementById('refresh-icon') as HTMLElement;
     const refreshText = document.getElementById('refresh-text') as HTMLElement;
     const refreshStatus = document.getElementById('refresh-status') as HTMLElement;
+    const progressContainer = document.getElementById('refresh-progress') as HTMLElement;
+    const progressBar = document.getElementById('progress-bar') as HTMLElement;
+    const progressCounter = document.getElementById('progress-counter') as HTMLElement;
+    const currentUserText = document.getElementById('current-user-text') as HTMLElement;
+    const progressLog = document.getElementById('progress-log') as HTMLElement;
 
     // Disable button and show loading state
     refreshBtn.disabled = true;
@@ -226,50 +249,103 @@ import PRModal from '../components/PRModal.astro';
     refreshIcon.classList.add('animate-spin');
     refreshText.textContent = 'Refreshing...';
     
-    // Show status message using template component
-    if (window.showStatusMessage) {
-      window.showStatusMessage(refreshStatus, {
-        type: 'info',
-        message: 'Fetching latest PR data for all users... This may take a minute.'
-      });
-    }
+    // Show progress container
+    progressContainer.classList.remove('hidden');
+    progressLog.innerHTML = '';
     
     try {
       const adminPassword = localStorage.getItem('adminPassword') || '';
-      const response = await fetch(API_BASE + '/api/admin/refresh-all?adminPassword=' + encodeURIComponent(adminPassword), {
-        method: 'POST'
-      });
+      const eventSource = new EventSource(API_BASE + '/api/admin/refresh-all?adminPassword=' + encodeURIComponent(adminPassword));
       
-      if (response.status === 401) {
-        localStorage.removeItem('adminPassword');
-        alert('Session expired. Please login again.');
-        window.location.reload();
-        return;
-      }
-      
-      const data = await response.json();
-      
-      // Show success message using template component
-      if (window.showStatusMessage) {
-        window.showStatusMessage(refreshStatus, {
-          type: 'success',
-          title: 'Refresh completed successfully!',
-          message: 'All user PR data has been updated.',
-          details: `Refreshed: ${data.usersRefreshed} users | Errors: ${data.errors}`
-        });
-      }
-      
-      // Reload dashboard data
-      setTimeout(() => {
-        loadDashboardData();
-      }, 2000);
-      
-      // Hide status after 5 seconds
-      setTimeout(() => {
-        if (window.hideStatusMessage) {
-          window.hideStatusMessage(refreshStatus);
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'start') {
+          progressCounter.textContent = `0 / ${data.total}`;
+          currentUserText.textContent = 'Starting refresh...';
+        } else if (data.type === 'progress') {
+          const percentage = (data.current / data.total) * 100;
+          progressBar.style.width = `${percentage}%`;
+          progressCounter.textContent = `${data.current} / ${data.total}`;
+          
+          if (data.status === 'fetching') {
+            currentUserText.textContent = `Fetching PRs for @${data.username}...`;
+            const logEntry = document.createElement('div');
+            logEntry.className = 'text-sm text-yellow-400 font-mono';
+            logEntry.innerHTML = `<span class="animate-pulse">⏳</span> Fetching @${data.username}...`;
+            progressLog.appendChild(logEntry);
+          } else if (data.status === 'success') {
+            const lastEntry = progressLog.lastElementChild;
+            if (lastEntry) {
+              lastEntry.className = 'text-sm text-green-400 font-mono';
+              lastEntry.innerHTML = `<span>✓</span> @${data.username} - Done!`;
+            }
+          } else if (data.status === 'error') {
+            const lastEntry = progressLog.lastElementChild;
+            if (lastEntry) {
+              lastEntry.className = 'text-sm text-red-400 font-mono';
+              lastEntry.innerHTML = `<span>✗</span> @${data.username} - Error: ${data.error || 'Unknown error'}`;
+            }
+          }
+          
+          // Scroll to bottom of log
+          progressLog.scrollTop = progressLog.scrollHeight;
+        } else if (data.type === 'complete') {
+          eventSource.close();
+          currentUserText.textContent = 'Completed!';
+          
+          // Show success message
+          if (window.showStatusMessage) {
+            window.showStatusMessage(refreshStatus, {
+              type: 'success',
+              title: 'Refresh completed successfully!',
+              message: 'All user PR data has been updated.',
+              details: `Refreshed: ${data.usersRefreshed} users | Errors: ${data.errors}`
+            });
+          }
+          
+          // Reload dashboard data
+          setTimeout(() => {
+            loadDashboardData();
+            progressContainer.classList.add('hidden');
+          }, 2000);
+          
+          // Hide status after 5 seconds
+          setTimeout(() => {
+            if (window.hideStatusMessage) {
+              window.hideStatusMessage(refreshStatus);
+            }
+          }, 5000);
+          
+          // Re-enable button
+          refreshBtn.disabled = false;
+          refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+          refreshIcon.classList.remove('animate-spin');
+          refreshText.textContent = 'Refresh All PRs';
+        } else if (data.type === 'error') {
+          eventSource.close();
+          throw new Error(data.error || 'Unknown error');
         }
-      }, 5000);
+      };
+      
+      eventSource.onerror = (error) => {
+        console.error('SSE Error:', error);
+        eventSource.close();
+        
+        if (window.showStatusMessage) {
+          window.showStatusMessage(refreshStatus, {
+            type: 'error',
+            message: 'Error refreshing PRs. Please try again.'
+          });
+        }
+        
+        // Re-enable button
+        refreshBtn.disabled = false;
+        refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        refreshIcon.classList.remove('animate-spin');
+        refreshText.textContent = 'Refresh All PRs';
+        progressContainer.classList.add('hidden');
+      };
       
     } catch (error) {
       console.error('Error refreshing PRs:', error);
@@ -279,12 +355,13 @@ import PRModal from '../components/PRModal.astro';
           message: 'Error refreshing PRs. Please try again.'
         });
       }
-    } finally {
+      
       // Re-enable button
       refreshBtn.disabled = false;
       refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
       refreshIcon.classList.remove('animate-spin');
       refreshText.textContent = 'Refresh All PRs';
+      progressContainer.classList.add('hidden');
     }
   }
 

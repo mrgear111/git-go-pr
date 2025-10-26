@@ -46,6 +46,7 @@ export async function getAllUsers(req, res) {
                 avatar_url: 1,
                 role: 1,
                 college: { $arrayElemAt: ['$college', 0] },
+                last_fetch_time: 1,
               },
             },
           ],
@@ -89,35 +90,81 @@ export async function getAllUserPRs(req, res) {
 
 export async function refreshAllUserPRs(req, res) {
   try {
+    // Set up Server-Sent Events (SSE) headers
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+    res.flushHeaders()
+
     const users = await models.User.find({}, 'username').lean()
 
     if (users.length === 0) {
-      return res.json({ message: 'No users to refresh', usersRefreshed: 0 })
+      res.write(`data: ${JSON.stringify({ type: 'complete', message: 'No users to refresh', usersRefreshed: 0 })}\n\n`)
+      res.end()
+      return
     }
 
     let successCount = 0
     let errorCount = 0
 
-    for (const user of users) {
+    // Send initial message
+    res.write(`data: ${JSON.stringify({ type: 'start', total: users.length })}\n\n`)
+
+    for (let i = 0; i < users.length; i++) {
+      const user = users[i]
       try {
+        // Send progress update
+        res.write(`data: ${JSON.stringify({ 
+          type: 'progress', 
+          username: user.username, 
+          current: i + 1, 
+          total: users.length,
+          status: 'fetching'
+        })}\n\n`)
+
         await refreshUserPRs(user.username)
         successCount++
-        await new Promise((resolve) => setTimeout(resolve, 2000))
+
+        // Send success update
+        res.write(`data: ${JSON.stringify({ 
+          type: 'progress', 
+          username: user.username, 
+          current: i + 1, 
+          total: users.length,
+          status: 'success'
+        })}\n\n`)
+
+        await new Promise((resolve) => setTimeout(resolve, 1000))
       } catch (error) {
         console.error(`Error refreshing ${user.username}:`, error.message)
         errorCount++
+        
+        // Send error update
+        res.write(`data: ${JSON.stringify({ 
+          type: 'progress', 
+          username: user.username, 
+          current: i + 1, 
+          total: users.length,
+          status: 'error',
+          error: error.message
+        })}\n\n`)
       }
     }
 
-    res.json({
+    // Send completion message
+    res.write(`data: ${JSON.stringify({
+      type: 'complete',
       message: 'Refresh completed',
       usersRefreshed: successCount,
       errors: errorCount,
       total: users.length,
-    })
+    })}\n\n`)
+    
+    res.end()
   } catch (error) {
     console.error('Error in manual refresh:', error)
-    res.status(500).json({ error: error.message })
+    res.write(`data: ${JSON.stringify({ type: 'error', error: error.message })}\n\n`)
+    res.end()
   }
 }
 

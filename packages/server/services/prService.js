@@ -62,7 +62,8 @@ export async function storeUserAndPRs(githubUser) {
       { github_id: githubUser.id },
       { 
         username,
-        github_id: githubUser.id
+        github_id: githubUser.id,
+        last_fetch_time: new Date()
       },
       { upsert: true, new: true }
     )
@@ -113,6 +114,9 @@ export async function refreshUserPRs(username) {
       }))
       await models.GitHubPR.insertMany(prData)
     }
+
+    // Update last fetch time
+    await models.User.findByIdAndUpdate(user._id, { last_fetch_time: new Date() })
 
     return { success: true, prCount: prs.length }
   } catch (error) {

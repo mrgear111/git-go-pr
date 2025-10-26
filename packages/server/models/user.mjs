@@ -31,6 +31,10 @@ const UserSchema = new mongoose.Schema(
       enum: ['student', 'instructor', 'admin'],
       default: 'student',
     },
+    last_fetch_time: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

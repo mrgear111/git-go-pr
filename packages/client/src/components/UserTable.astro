@@ -27,6 +27,9 @@ const { id = 'users-table' } = Astro.props;
             PRs
           </th>
           <th class="px-6 py-3 text-left text-xs font-medium text-green-300 uppercase tracking-wider font-mono">
+            Last Fetch
+          </th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-green-300 uppercase tracking-wider font-mono">
             Actions
           </th>
         </tr>
@@ -34,7 +37,7 @@ const { id = 'users-table' } = Astro.props;
       <tbody id={id} class="bg-gray-900 divide-y divide-gray-700" data-user-table>
         <!-- User rows will be populated by client-side script -->
         <tr>
-          <td colspan="5" class="px-6 py-8 text-center">
+          <td colspan="6" class="px-6 py-8 text-center">
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-400 mx-auto mb-2"></div>
             <p class="text-green-300 font-mono text-sm">Loading users...</p>
           </td>
@@ -60,6 +63,24 @@ const { id = 'users-table' } = Astro.props;
     instructor: string | null;
     pr_count: number;
     github_prs: any[] | null;
+    last_fetch_time: string | null;
+  }
+
+  function formatLastFetch(lastFetchTime: string | null): string {
+    if (!lastFetchTime) return '<span class="text-gray-500">Never</span>';
+    
+    const date = new Date(lastFetchTime);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return '<span class="text-green-400">Just now</span>';
+    if (diffMins < 60) return `<span class="text-green-400">${diffMins}m ago</span>`;
+    if (diffHours < 24) return `<span class="text-yellow-400">${diffHours}h ago</span>`;
+    if (diffDays < 7) return `<span class="text-orange-400">${diffDays}d ago</span>`;
+    return `<span class="text-red-400">${date.toLocaleDateString()}</span>`;
   }
 
   function renderUserRow(user: User): string {
@@ -67,6 +88,7 @@ const { id = 'users-table' } = Astro.props;
     const role = user.role || 'Not set';
     const college = typeof user.college === 'string' ? user.college : user.college?.name || 'Not set';
     const prCount = user.pr_count || user.github_prs?.length || 0;
+    const lastFetch = formatLastFetch(user.last_fetch_time);
 
     return `
       <tr class="hover:bg-gray-800 transition-colors">
@@ -93,6 +115,9 @@ const { id = 'users-table' } = Astro.props;
           ${prCount}
         </td>
         <td class="px-6 py-4 whitespace-nowrap text-sm font-mono">
+          ${lastFetch}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm font-mono">
           <button 
             onclick="window.viewUserPRs('${user._id}', '${user.username}')"
             class="text-blue-400 hover:text-blue-300 underline"
@@ -110,7 +135,7 @@ const { id = 'users-table' } = Astro.props;
     if (users.length === 0) {
       tableBody.innerHTML = `
         <tr>
-          <td colspan="5" class="px-6 py-8 text-center">
+          <td colspan="6" class="px-6 py-8 text-center">
             <p class="text-green-300 font-mono">No users found</p>
           </td>
         </tr>

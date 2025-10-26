@@ -94,7 +94,15 @@ export async function refreshAllUserPRs(req, res) {
     res.setHeader('Content-Type', 'text/event-stream')
     res.setHeader('Cache-Control', 'no-cache')
     res.setHeader('Connection', 'keep-alive')
+    res.setHeader('X-Accel-Buffering', 'no') // Disable nginx buffering
     res.flushHeaders()
+
+    // Track if connection is closed
+    let connectionClosed = false
+    req.on('close', () => {
+      connectionClosed = true
+      console.log('Client closed SSE connection')
+    })
 
     const users = await models.User.find({}, 'username').lean()
 
@@ -111,6 +119,12 @@ export async function refreshAllUserPRs(req, res) {
     res.write(`data: ${JSON.stringify({ type: 'start', total: users.length })}\n\n`)
 
     for (let i = 0; i < users.length; i++) {
+      // Check if connection is still open
+      if (connectionClosed) {
+        console.log('Connection closed, stopping refresh')
+        break
+      }
+
       const user = users[i]
       try {
         // Send progress update
@@ -134,7 +148,10 @@ export async function refreshAllUserPRs(req, res) {
           status: 'success'
         })}\n\n`)
 
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        // Send heartbeat comment to keep connection alive
+        res.write(': heartbeat\n\n')
+
+        await new Promise((resolve) => setTimeout(resolve, 500))
       } catch (error) {
         console.error(`Error refreshing ${user.username}:`, error.message)
         errorCount++
@@ -152,19 +169,26 @@ export async function refreshAllUserPRs(req, res) {
     }
 
     // Send completion message
-    res.write(`data: ${JSON.stringify({
-      type: 'complete',
-      message: 'Refresh completed',
-      usersRefreshed: successCount,
-      errors: errorCount,
-      total: users.length,
-    })}\n\n`)
+    if (!connectionClosed) {
+      res.write(`data: ${JSON.stringify({
+        type: 'complete',
+        message: 'Refresh completed',
+        usersRefreshed: successCount,
+        errors: errorCount,
+        total: users.length,
+      })}\n\n`)
+    }
     
     res.end()
   } catch (error) {
     console.error('Error in manual refresh:', error)
-    res.write(`data: ${JSON.stringify({ type: 'error', error: error.message })}\n\n`)
-    res.end()
+    try {
+      res.write(`data: ${JSON.stringify({ type: 'error', error: error.message })}\n\n`)
+      res.end()
+    } catch (e) {
+      // Connection already closed
+      console.error('Could not send error to client:', e.message)
+    }
   }
 }
 

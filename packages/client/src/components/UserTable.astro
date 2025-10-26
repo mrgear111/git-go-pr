@@ -24,7 +24,10 @@ const { id = 'users-table' } = Astro.props;
             College
           </th>
           <th class="px-6 py-3 text-left text-xs font-medium text-green-300 uppercase tracking-wider font-mono">
-            PRs
+            Total PRs
+          </th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-green-300 uppercase tracking-wider font-mono">
+            Merged
           </th>
           <th class="px-6 py-3 text-left text-xs font-medium text-green-300 uppercase tracking-wider font-mono">
             Last Fetch
@@ -37,7 +40,7 @@ const { id = 'users-table' } = Astro.props;
       <tbody id={id} class="bg-gray-900 divide-y divide-gray-700" data-user-table>
         <!-- User rows will be populated by client-side script -->
         <tr>
-          <td colspan="6" class="px-6 py-8 text-center">
+          <td colspan="7" class="px-6 py-8 text-center">
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-400 mx-auto mb-2"></div>
             <p class="text-green-300 font-mono text-sm">Loading users...</p>
           </td>
@@ -62,6 +65,7 @@ const { id = 'users-table' } = Astro.props;
     year: string | null;
     instructor: string | null;
     pr_count: number;
+    merged_count?: number;
     github_prs: any[] | null;
     last_fetch_time: string | null;
   }
@@ -88,6 +92,7 @@ const { id = 'users-table' } = Astro.props;
     const role = user.role || 'Not set';
     const college = typeof user.college === 'string' ? user.college : user.college?.name || 'Not set';
     const prCount = user.pr_count || user.github_prs?.length || 0;
+    const mergedCount = user.merged_count || 0;
     const lastFetch = formatLastFetch(user.last_fetch_time);
 
     return `
@@ -114,6 +119,9 @@ const { id = 'users-table' } = Astro.props;
         <td class="px-6 py-4 whitespace-nowrap text-green-100 font-mono text-sm">
           ${prCount}
         </td>
+        <td class="px-6 py-4 whitespace-nowrap text-green-400 font-mono text-sm font-bold">
+          ${mergedCount}
+        </td>
         <td class="px-6 py-4 whitespace-nowrap text-sm font-mono">
           ${lastFetch}
         </td>
@@ -135,7 +143,7 @@ const { id = 'users-table' } = Astro.props;
     if (users.length === 0) {
       tableBody.innerHTML = `
         <tr>
-          <td colspan="6" class="px-6 py-8 text-center">
+          <td colspan="7" class="px-6 py-8 text-center">
             <p class="text-green-300 font-mono">No users found</p>
           </td>
         </tr>
@@ -143,7 +151,15 @@ const { id = 'users-table' } = Astro.props;
       return;
     }
 
-    tableBody.innerHTML = users.map(renderUserRow).join('');
+    // Sort by merged count (descending), then by pr_count
+    const sortedUsers = [...users].sort((a, b) => {
+      const aMerged = a.merged_count || 0;
+      const bMerged = b.merged_count || 0;
+      if (bMerged !== aMerged) return bMerged - aMerged;
+      return (b.pr_count || 0) - (a.pr_count || 0);
+    });
+
+    tableBody.innerHTML = sortedUsers.map(renderUserRow).join('');
   }
 
   // Make function globally available

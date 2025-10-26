@@ -11,10 +11,13 @@ export async function getAllUsers(req, res) {
         $group: {
           _id: '$author',
           pr_count: { $sum: 1 },
+          merged_count: {
+            $sum: { $cond: [{ $eq: ['$is_merged', true] }, 1, 0] }
+          },
         },
       },
       {
-        $sort: { pr_count: -1 },
+        $sort: { merged_count: -1, pr_count: -1 },
       },
       {
         $lookup: {
@@ -58,7 +61,7 @@ export async function getAllUsers(req, res) {
       {
         $replaceRoot: {
           newRoot: {
-            $mergeObjects: ['$user', { _id: '$_id', pr_count: '$pr_count' }],
+            $mergeObjects: ['$user', { _id: '$_id', pr_count: '$pr_count', merged_count: '$merged_count' }],
           },
         },
       },

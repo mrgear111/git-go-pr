@@ -55,6 +55,16 @@ import PRModal from '../components/PRModal.astro';
       </div>
 
       <div id="dashboard-content" class="hidden">
+        <!-- Search Box -->
+        <div class="mb-6">
+          <input 
+            type="text" 
+            id="user-search" 
+            placeholder="Search users by name or username..." 
+            class="w-full px-4 py-3 bg-gray-900 border border-green-600 rounded-lg text-green-100 font-mono focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div class="bg-gray-900 border border-green-600 rounded-lg p-6">
             <p class="text-green-300 font-mono text-sm">Total Users</p>
@@ -208,10 +218,19 @@ import PRModal from '../components/PRModal.astro';
 
       const usersData: { users: User[] } = await usersResponse.json();
       
+      // Store users globally for search
+      allUsers = usersData.users;
+      
       // Use template-based user table rendering
       const tableBody = document.querySelector('[data-user-table]') as HTMLElement;
       if (tableBody && window.populateUserTable) {
         window.populateUserTable(tableBody, usersData.users);
+      }
+      
+      // Wire up search input
+      const searchInput = document.getElementById('user-search') as HTMLInputElement;
+      if (searchInput) {
+        searchInput.addEventListener('input', filterUsers);
       }
 
 
@@ -587,6 +606,41 @@ import PRModal from '../components/PRModal.astro';
   cooldownCheckInterval = window.setInterval(checkCooldownStatus, 60000);
 
   loadDashboardData();
+
+  // Store all users for search filtering
+  let allUsers: any[] = [];
+
+  // Search functionality
+  function filterUsers() {
+    const searchInput = document.getElementById('user-search') as HTMLInputElement;
+    const searchTerm = searchInput.value.toLowerCase().trim();
+    
+    if (!searchTerm) {
+      // Show all users if search is empty
+      const tableBody = document.querySelector('[data-user-table]') as HTMLElement;
+      if (tableBody && window.populateUserTable) {
+        window.populateUserTable(tableBody, allUsers);
+      }
+      return;
+    }
+    
+    // Filter users by name or username
+    const filtered = allUsers.filter(user => {
+      const fullName = (user.full_name || '').toLowerCase();
+      const username = (user.username || '').toLowerCase();
+      const displayName = (user.display_name || '').toLowerCase();
+      
+      return fullName.includes(searchTerm) || 
+             username.includes(searchTerm) || 
+             displayName.includes(searchTerm);
+    });
+    
+    // Update table with filtered users
+    const tableBody = document.querySelector('[data-user-table]') as HTMLElement;
+    if (tableBody && window.populateUserTable) {
+      window.populateUserTable(tableBody, filtered);
+    }
+  }
 
   declare global {
     interface Window {

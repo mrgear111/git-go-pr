@@ -231,8 +231,8 @@ import PRModal from '../components/PRModal.astro';
     window.setupPRModalHandlers(modalElement);
   }
 
-  // Manual refresh all PRs function with SSE
-  async function refreshAllPRs() {
+  // Manual refresh all PRs function with SSE and batch processing
+  async function refreshAllPRs(skipCount = 0) {
     const refreshBtn = document.getElementById('refresh-all-btn') as HTMLButtonElement;
     const refreshIcon = document.getElementById('refresh-icon') as HTMLElement;
     const refreshText = document.getElementById('refresh-text') as HTMLElement;
@@ -249,24 +249,33 @@ import PRModal from '../components/PRModal.astro';
     refreshIcon.classList.add('animate-spin');
     refreshText.textContent = 'Refreshing...';
     
-    // Show progress container
+    // Show progress container (but don't clear log if resuming)
     progressContainer.classList.remove('hidden');
-    progressLog.innerHTML = '';
+    if (skipCount === 0) {
+      progressLog.innerHTML = '';
+    }
     
     try {
       const adminPassword = localStorage.getItem('adminPassword') || '';
-      const eventSource = new EventSource(API_BASE + '/api/admin/refresh-all?adminPassword=' + encodeURIComponent(adminPassword));
+      const batchSize = 50; // Process 50 users at a time
+      const eventSource = new EventSource(
+        API_BASE + '/api/admin/refresh-all?adminPassword=' + encodeURIComponent(adminPassword) + 
+        '&skip=' + skipCount + '&batchSize=' + batchSize
+      );
+      
+      let totalUsersGlobal = 0;
+      let processedGlobal = skipCount;
       
       eventSource.onmessage = (event) => {
         const data = JSON.parse(event.data);
         
         if (data.type === 'start') {
-          progressCounter.textContent = `0 / ${data.total}`;
-          currentUserText.textContent = 'Starting refresh...';
+          totalUsersGlobal = data.totalUsers;
         } else if (data.type === 'progress') {
-          const percentage = (data.current / data.total) * 100;
+          processedGlobal = skipCount + data.current;
+          const percentage = (processedGlobal / totalUsersGlobal) * 100;
           progressBar.style.width = `${percentage}%`;
-          progressCounter.textContent = `${data.current} / ${data.total}`;
+          progressCounter.textContent = `${processedGlobal} / ${totalUsersGlobal}`;
           
           if (data.status === 'fetching') {
             currentUserText.textContent = `Fetching PRs for @${data.username}...`;
@@ -292,36 +301,55 @@ import PRModal from '../components/PRModal.astro';
           progressLog.scrollTop = progressLog.scrollHeight;
         } else if (data.type === 'complete') {
           eventSource.close();
-          currentUserText.textContent = 'Completed!';
           
-          // Show success message
-          if (window.showStatusMessage) {
-            window.showStatusMessage(refreshStatus, {
-              type: 'success',
-              title: 'Refresh completed successfully!',
-              message: 'All user PR data has been updated.',
-              details: `Refreshed: ${data.usersRefreshed} users | Errors: ${data.errors}`
-            });
-          }
-          
-          // Reload dashboard data
-          setTimeout(() => {
-            loadDashboardData();
-            progressContainer.classList.add('hidden');
-          }, 2000);
-          
-          // Hide status after 5 seconds
-          setTimeout(() => {
-            if (window.hideStatusMessage) {
-              window.hideStatusMessage(refreshStatus);
+          // Check if there are more users to process
+          if (data.hasMore && data.nextSkip) {
+            currentUserText.textContent = `Batch complete! Continuing with next batch...`;
+            
+            // Add separator in log
+            const separator = document.createElement('div');
+            separator.className = 'text-sm text-blue-400 font-mono border-t border-blue-600 pt-2 mt-2';
+            separator.textContent = `--- Continuing with users ${data.nextSkip + 1}+ ---`;
+            progressLog.appendChild(separator);
+            progressLog.scrollTop = progressLog.scrollHeight;
+            
+            // Auto-continue with next batch after 1 second
+            setTimeout(() => {
+              refreshAllPRs(data.nextSkip);
+            }, 1000);
+          } else {
+            // All done!
+            currentUserText.textContent = 'All users completed!';
+            
+            // Show success message
+            if (window.showStatusMessage) {
+              window.showStatusMessage(refreshStatus, {
+                type: 'success',
+                title: 'Refresh completed successfully!',
+                message: 'All user PR data has been updated.',
+                details: `Total processed: ${data.processed} users`
+              });
             }
-          }, 5000);
-          
-          // Re-enable button
-          refreshBtn.disabled = false;
-          refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-          refreshIcon.classList.remove('animate-spin');
-          refreshText.textContent = 'Refresh All PRs';
+            
+            // Reload dashboard data
+            setTimeout(() => {
+              loadDashboardData();
+              progressContainer.classList.add('hidden');
+            }, 2000);
+            
+            // Hide status after 5 seconds
+            setTimeout(() => {
+              if (window.hideStatusMessage) {
+                window.hideStatusMessage(refreshStatus);
+              }
+            }, 5000);
+            
+            // Re-enable button
+            refreshBtn.disabled = false;
+            refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            refreshIcon.classList.remove('animate-spin');
+            refreshText.textContent = 'Refresh All PRs';
+          }
         } else if (data.type === 'error') {
           eventSource.close();
           throw new Error(data.error || 'Unknown error');
@@ -332,11 +360,24 @@ import PRModal from '../components/PRModal.astro';
         console.error('SSE Error:', error);
         eventSource.close();
         
-        if (window.showStatusMessage) {
-          window.showStatusMessage(refreshStatus, {
-            type: 'error',
-            message: 'Error refreshing PRs. Please try again.'
-          });
+        // Check if we received any progress - if so, it's a connection issue mid-stream
+        const progressCounterText = progressCounter.textContent;
+        const hasProgress = progressCounterText && progressCounterText !== '0 / 0';
+        
+        if (hasProgress) {
+          if (window.showStatusMessage) {
+            window.showStatusMessage(refreshStatus, {
+              type: 'error',
+              message: 'Connection interrupted. Progress was saved. Please click Refresh again to continue.'
+            });
+          }
+        } else {
+          if (window.showStatusMessage) {
+            window.showStatusMessage(refreshStatus, {
+              type: 'error',
+              message: 'Error starting refresh. Please try again.'
+            });
+          }
         }
         
         // Re-enable button
@@ -344,7 +385,11 @@ import PRModal from '../components/PRModal.astro';
         refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         refreshIcon.classList.remove('animate-spin');
         refreshText.textContent = 'Refresh All PRs';
-        progressContainer.classList.add('hidden');
+        
+        // Don't hide progress container if we made progress
+        if (!hasProgress) {
+          progressContainer.classList.add('hidden');
+        }
       };
       
     } catch (error) {

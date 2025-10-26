@@ -104,10 +104,15 @@ export async function refreshAllUserPRs(req, res) {
       console.log('Client closed SSE connection')
     })
 
-    const users = await models.User.find({}, 'username').lean()
+    // Get batch parameters from query (for resuming)
+    const batchSize = parseInt(req.query.batchSize) || 50 // Process 50 users at a time
+    const skip = parseInt(req.query.skip) || 0
+
+    const users = await models.User.find({}, 'username').skip(skip).limit(batchSize).lean()
+    const totalUsers = await models.User.countDocuments()
 
     if (users.length === 0) {
-      res.write(`data: ${JSON.stringify({ type: 'complete', message: 'No users to refresh', usersRefreshed: 0 })}\n\n`)
+      res.write(`data: ${JSON.stringify({ type: 'complete', message: 'No more users to refresh', usersRefreshed: 0, hasMore: false })}\n\n`)
       res.end()
       return
     }
@@ -115,8 +120,14 @@ export async function refreshAllUserPRs(req, res) {
     let successCount = 0
     let errorCount = 0
 
-    // Send initial message
-    res.write(`data: ${JSON.stringify({ type: 'start', total: users.length })}\n\n`)
+    // Send initial message with batch info
+    res.write(`data: ${JSON.stringify({ 
+      type: 'start', 
+      total: users.length,
+      totalUsers: totalUsers,
+      skip: skip,
+      batchSize: batchSize
+    })}\n\n`)
 
     for (let i = 0; i < users.length; i++) {
       // Check if connection is still open
@@ -170,12 +181,19 @@ export async function refreshAllUserPRs(req, res) {
 
     // Send completion message
     if (!connectionClosed) {
+      const nextSkip = skip + users.length
+      const hasMore = nextSkip < totalUsers
+      
       res.write(`data: ${JSON.stringify({
         type: 'complete',
-        message: 'Refresh completed',
+        message: hasMore ? 'Batch completed' : 'All users refreshed',
         usersRefreshed: successCount,
         errors: errorCount,
         total: users.length,
+        totalUsers: totalUsers,
+        processed: nextSkip,
+        hasMore: hasMore,
+        nextSkip: hasMore ? nextSkip : null
       })}\n\n`)
     }
     

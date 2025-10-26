@@ -4,6 +4,7 @@ import {
   getAllUsers,
   getAllUserPRs,
   refreshAllUserPRs,
+  getRefreshStatus,
   getAdminStats,
   getAllPRs,
   getAllColleges,
@@ -16,7 +17,8 @@ const router = Router()
 
 router.get('/users', getAllUsers)
 router.get('/users/:userId/prs', getAllUserPRs)
-router.get('/refresh-all', refreshAllUserPRs)
+router.post('/refresh-all', refreshAllUserPRs)
+router.get('/refresh-status', getRefreshStatus)
 router.get('/stats', getAdminStats)
 //
 router.get('/pull-requests', getAllPRs)

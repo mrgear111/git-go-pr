@@ -231,7 +231,10 @@ import PRModal from '../components/PRModal.astro';
     window.setupPRModalHandlers(modalElement);
   }
 
-  // Manual refresh all PRs function with SSE
+  // Polling interval for status updates
+  let pollingInterval: number | null = null;
+
+  // Manual refresh all PRs function with background job and polling
   async function refreshAllPRs() {
     const refreshBtn = document.getElementById('refresh-all-btn') as HTMLButtonElement;
     const refreshIcon = document.getElementById('refresh-icon') as HTMLElement;
@@ -247,112 +250,110 @@ import PRModal from '../components/PRModal.astro';
     refreshBtn.disabled = true;
     refreshBtn.classList.add('opacity-50', 'cursor-not-allowed');
     refreshIcon.classList.add('animate-spin');
-    refreshText.textContent = 'Refreshing...';
+    refreshText.textContent = 'Starting...';
     
-    // Show progress container
+    // Show progress container and clear log
     progressContainer.classList.remove('hidden');
     progressLog.innerHTML = '';
     
     try {
       const adminPassword = localStorage.getItem('adminPassword') || '';
-      const eventSource = new EventSource(API_BASE + '/api/admin/refresh-all?adminPassword=' + encodeURIComponent(adminPassword));
       
-      eventSource.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        
-        if (data.type === 'start') {
-          progressCounter.textContent = `0 / ${data.total}`;
-          currentUserText.textContent = 'Starting refresh...';
-        } else if (data.type === 'progress') {
-          const percentage = (data.current / data.total) * 100;
+      // Start the background job
+      const startResponse = await fetch(API_BASE + '/api/admin/refresh-all?adminPassword=' + encodeURIComponent(adminPassword), {
+        method: 'POST'
+      });
+      
+      if (!startResponse.ok) {
+        throw new Error('Failed to start refresh');
+      }
+      
+      const startData = await startResponse.json();
+      if (!startData.success) {
+        throw new Error(startData.message || 'Failed to start refresh');
+      }
+      
+      refreshText.textContent = 'Refreshing...';
+      let lastProcessed = 0;
+      const seenUsers = new Set();
+      
+      // Poll for status updates
+      pollingInterval = window.setInterval(async () => {
+        try {
+          const statusResponse = await fetch(API_BASE + '/api/admin/refresh-status?adminPassword=' + encodeURIComponent(adminPassword));
+          const status = await statusResponse.json();
+          
+          // Update UI
+          const percentage = status.totalUsers > 0 ? (status.processed / status.totalUsers) * 100 : 0;
           progressBar.style.width = `${percentage}%`;
-          progressCounter.textContent = `${data.current} / ${data.total}`;
+          progressCounter.textContent = `${status.processed} / ${status.totalUsers}`;
           
-          if (data.status === 'fetching') {
-            currentUserText.textContent = `Fetching PRs for @${data.username}...`;
-            const logEntry = document.createElement('div');
-            logEntry.className = 'text-sm text-yellow-400 font-mono';
-            logEntry.innerHTML = `<span class="animate-pulse">⏳</span> Fetching @${data.username}...`;
-            progressLog.appendChild(logEntry);
-          } else if (data.status === 'success') {
-            const lastEntry = progressLog.lastElementChild;
-            if (lastEntry) {
-              lastEntry.className = 'text-sm text-green-400 font-mono';
-              lastEntry.innerHTML = `<span>✓</span> @${data.username} - Done!`;
-            }
-          } else if (data.status === 'error') {
-            const lastEntry = progressLog.lastElementChild;
-            if (lastEntry) {
-              lastEntry.className = 'text-sm text-red-400 font-mono';
-              lastEntry.innerHTML = `<span>✗</span> @${data.username} - Error: ${data.error || 'Unknown error'}`;
-            }
+          if (status.currentUser) {
+            currentUserText.textContent = `Fetching PRs for @${status.currentUser}...`;
           }
           
-          // Scroll to bottom of log
-          progressLog.scrollTop = progressLog.scrollHeight;
-        } else if (data.type === 'complete') {
-          eventSource.close();
-          currentUserText.textContent = 'Completed!';
-          
-          // Show success message
-          if (window.showStatusMessage) {
-            window.showStatusMessage(refreshStatus, {
-              type: 'success',
-              title: 'Refresh completed successfully!',
-              message: 'All user PR data has been updated.',
-              details: `Refreshed: ${data.usersRefreshed} users | Errors: ${data.errors}`
-            });
+          // Add new logs
+          if (status.recentLogs && status.recentLogs.length > 0) {
+            for (const log of status.recentLogs.slice().reverse()) {
+              const key = `${log.username}-${log.status}`;
+              if (!seenUsers.has(key)) {
+                seenUsers.add(key);
+                const logEntry = document.createElement('div');
+                if (log.status === 'success') {
+                  logEntry.className = 'text-sm text-green-400 font-mono';
+                  logEntry.innerHTML = `<span>✓</span> @${log.username} - Done!`;
+                } else {
+                  logEntry.className = 'text-sm text-red-400 font-mono';
+                  logEntry.innerHTML = `<span>✗</span> @${log.username} - Error: ${log.error || 'Unknown error'}`;
+                }
+                progressLog.appendChild(logEntry);
+              }
+            }
+            progressLog.scrollTop = progressLog.scrollHeight;
           }
           
-          // Reload dashboard data
-          setTimeout(() => {
-            loadDashboardData();
-            progressContainer.classList.add('hidden');
-          }, 2000);
-          
-          // Hide status after 5 seconds
-          setTimeout(() => {
-            if (window.hideStatusMessage) {
-              window.hideStatusMessage(refreshStatus);
+          // Check if complete
+          if (!status.isRunning && status.processed > 0) {
+            clearInterval(pollingInterval!);
+            currentUserText.textContent = 'All users completed!';
+            
+            // Show success message
+            if (window.showStatusMessage) {
+              window.showStatusMessage(refreshStatus, {
+                type: 'success',
+                title: 'Refresh completed successfully!',
+                message: 'All user PR data has been updated.',
+                details: `Successful: ${status.successful} | Errors: ${status.errors}`
+              });
             }
-          }, 5000);
-          
-          // Re-enable button
-          refreshBtn.disabled = false;
-          refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-          refreshIcon.classList.remove('animate-spin');
-          refreshText.textContent = 'Refresh All PRs';
-        } else if (data.type === 'error') {
-          eventSource.close();
-          throw new Error(data.error || 'Unknown error');
+            
+            // Reload dashboard data
+            setTimeout(() => {
+              loadDashboardData();
+              progressContainer.classList.add('hidden');
+            }, 2000);
+            
+            // Re-enable button
+            refreshBtn.disabled = false;
+            refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            refreshIcon.classList.remove('animate-spin');
+            refreshText.textContent = 'Refresh All PRs';
+          }
+        } catch (error) {
+          console.error('Polling error:', error);
         }
-      };
-      
-      eventSource.onerror = (error) => {
-        console.error('SSE Error:', error);
-        eventSource.close();
-        
-        if (window.showStatusMessage) {
-          window.showStatusMessage(refreshStatus, {
-            type: 'error',
-            message: 'Error refreshing PRs. Please try again.'
-          });
-        }
-        
-        // Re-enable button
-        refreshBtn.disabled = false;
-        refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-        refreshIcon.classList.remove('animate-spin');
-        refreshText.textContent = 'Refresh All PRs';
-        progressContainer.classList.add('hidden');
-      };
+      }, 1000); // Poll every second
       
     } catch (error) {
-      console.error('Error refreshing PRs:', error);
+      console.error('Error starting refresh:', error);
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+      
       if (window.showStatusMessage) {
         window.showStatusMessage(refreshStatus, {
           type: 'error',
-          message: 'Error refreshing PRs. Please try again.'
+          message: 'Error starting refresh. Please try again.'
         });
       }
       
